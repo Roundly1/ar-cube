@@ -3,25 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>AR 3D Kub</title>
+<title>AR 3D</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:#000;overflow:hidden;font-family:Arial,sans-serif}
   #video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
-  #canvas{position:fixed;inset:0;width:100%;height:100%;z-index:1}
+  #canvas{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
   #overlay{position:fixed;inset:0;z-index:10;pointer-events:none}
-  #status{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:7px 16px;border-radius:20px;font-size:13px;white-space:nowrap;pointer-events:none}
-  #hint{position:absolute;bottom:110px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);color:#fff;padding:6px 14px;border-radius:16px;font-size:12px;white-space:nowrap}
-  #btns{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:all;flex-wrap:wrap;justify-content:center;padding:0 10px}
-  button{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.5);color:#fff;padding:10px 15px;border-radius:22px;font-size:13px;cursor:pointer}
+  #status{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:7px 16px;border-radius:20px;font-size:13px;white-space:nowrap}
+  #hint{position:absolute;bottom:110px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;padding:6px 14px;border-radius:16px;font-size:12px;white-space:nowrap}
+  #btns{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:all}
+  button{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.5);color:#fff;padding:11px 16px;border-radius:22px;font-size:14px;cursor:pointer}
   button.primary{background:rgba(79,195,247,.4);border-color:#4fc3f7}
-  #permBtn{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:100;background:rgba(0,0,0,.75)}
-  #permBox{background:#1a1a2e;border:2px solid #4fc3f7;border-radius:24px;padding:32px 28px;text-align:center;max-width:320px;color:#fff}
-  #permBox h2{font-size:22px;margin-bottom:12px}
-  #permBox p{font-size:14px;color:#aaa;margin-bottom:24px;line-height:1.6}
-  #permBox button{width:100%;padding:14px;font-size:16px;border-radius:16px;background:#4fc3f7;border:none;color:#000;font-weight:bold;cursor:pointer}
-  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#4CAF50;animation:blink 1s infinite;margin-right:5px}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+  #permScreen{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center}
+  #permBox{background:#1a1a2e;border:2px solid #4fc3f7;border-radius:24px;padding:32px 24px;text-align:center;max-width:300px;color:#fff}
+  #permBox h2{font-size:20px;margin-bottom:10px}
+  #permBox p{font-size:13px;color:#aaa;margin-bottom:22px;line-height:1.6}
+  #permBox button{width:100%;padding:13px;font-size:15px;border-radius:14px;background:#4fc3f7;border:none;color:#000;font-weight:bold;cursor:pointer}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4CAF50;animation:bl 1s infinite;margin-right:5px;vertical-align:middle}
+  @keyframes bl{0%,100%{opacity:1}50%{opacity:.2}}
 </style>
 </head>
 <body>
@@ -29,7 +29,7 @@
 <canvas id="canvas"></canvas>
 <div id="overlay">
   <div id="status">⏳ Yuklanmoqda…</div>
-  <div id="hint" id="hint">Yuklanmoqda…</div>
+  <div id="hint">—</div>
   <div id="btns">
     <button onclick="changeColor()">🎨</button>
     <button onclick="changeShape()">🔷</button>
@@ -37,175 +37,221 @@
     <button id="resetBtn" style="display:none" onclick="resetAnchor()">🔄 Reset</button>
   </div>
 </div>
-
-<!-- Permission screen -->
-<div id="permBtn">
+<div id="permScreen">
   <div id="permBox">
     <h2>🎯 AR 3D Kub</h2>
-    <p>Kamera va harakat sensorlari uchun ruxsat kerak.<br>Ular orqali 3D ob'ekt real dunyonga joylashtiriladi.</p>
-    <button onclick="requestAll()">✅ Ruxsat Berish va Boshlash</button>
+    <p>Kamera va gyro sensori uchun ruxsat kerak</p>
+    <button onclick="startApp()">▶ Boshlash</button>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+// ── SOZLAMALAR ──────────────────────────────────
 const COLORS=[0x4fc3f7,0xff6b6b,0x69f0ae,0xffeb3b,0xce93d8,0xff8a65];
 const SHAPES=['box','octahedron','torus','sphere','cone'];
-let ci=0,si=0;
+let ci=0, si=0;
+
+// ── GYRO STATE ──────────────────────────────────
+// Qurilma orientatsiyasini to'liq matritsada saqlaymiz
+let hasGyro=false;
+let currentQ = new THREE.Quaternion(); // joriy qurilma orientatsiyasi
+let anchorQ  = new THREE.Quaternion(); // joylashtirilgan paytdagi orientatsiya
 let isAnchored=false;
-let anchorAlpha=0,anchorBeta=0;
-let gyro={alpha:0,beta:0,gamma:0},hasGyro=false;
-let renderer,scene,camera,meshGroup;
-let camYaw=0,camPitch=0,lastT=null;
 
-async function requestAll(){
-  document.getElementById('permBtn').style.display='none';
+// ── THREE ───────────────────────────────────────
+let renderer,scene,camera,meshGroup,worldGroup;
 
-  // 1. Kamera
+async function startApp(){
+  document.getElementById('permScreen').style.display='none';
+
+  // Kamera
   try{
-    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1920}}});
     document.getElementById('video').srcObject=s;
   }catch(e){ setStatus('⚠️ Kamera ruxsati berilmadi'); }
 
-  // 2. Gyro — iOS
+  // Gyro ruxsat (iOS)
   if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
-    try{
-      const r=await DeviceOrientationEvent.requestPermission();
-      if(r==='granted') bindGyro();
-      else setStatus('⚠️ Gyro ruxsati berilmadi — barmoq bilan aylantiring');
-    }catch(e){ bindGyro(); }
-  } else {
-    // Android — ruxsat so'ralmaydi
-    bindGyro();
+    try{ await DeviceOrientationEvent.requestPermission(); }catch(_){}
   }
-
+  bindGyro();
   setupThree();
-  startLoop();
+  loop();
 }
 
+// ── GYRO: quaternion usuli ──────────────────────
+// Bu usul gimbal lock muammosini yo'q qiladi
 function bindGyro(){
-  window.addEventListener('deviceorientation',e=>{
-    if(e.alpha!=null){
-      hasGyro=true;
-      gyro.alpha=e.alpha||0;
-      gyro.beta=e.beta||0;
-      gyro.gamma=e.gamma||0;
-      setStatus('<span class="dot"></span>Gyro aktiv ✅');
-    }
-  },{passive:true});
-
-  // 0.5 soniya kutib tekshiramiz
+  window.addEventListener('deviceorientation', onOrientation, {passive:true});
   setTimeout(()=>{
-    if(!hasGyro){
-      setStatus('⚠️ Gyro aniqlanmadi — barmoq bilan aylantiring');
-      setHint('Joylashtirgandan keyin ekranni sudrab aylanting');
-    }
-  },600);
+    if(!hasGyro) setStatus('⚠️ Gyro yo\'q — ekranni suring');
+    else setStatus('<span class="dot"></span>Gyro aktiv ✅');
+  }, 800);
 }
 
+const _x = new THREE.Vector3(1,0,0);
+const _y = new THREE.Vector3(0,1,0);
+const _z = new THREE.Vector3(0,0,1);
+const q1 = new THREE.Quaternion();
+const q2 = new THREE.Quaternion();
+
+function onOrientation(e){
+  if(e.alpha==null) return;
+  hasGyro=true;
+
+  const alpha = THREE.MathUtils.degToRad(e.alpha); // Z atrofida (compass)
+  const beta  = THREE.MathUtils.degToRad(e.beta);  // X atrofida (tilt)
+  const gamma = THREE.MathUtils.degToRad(e.gamma); // Y atrofida (roll)
+
+  // Qurilma orientatsiyasini quaternion ga aylantiramiz
+  // Tartib: ZXY (standart DeviceOrientation konventsiyasi)
+  currentQ.set(0,0,0,1);
+  q1.setFromAxisAngle(_z, alpha);
+  currentQ.multiply(q1);
+  q1.setFromAxisAngle(_x, beta);
+  currentQ.multiply(q1);
+  q1.setFromAxisAngle(_y, gamma);
+  currentQ.multiply(q1);
+
+  // Ekran yo'nalishi tuzatmasi (portret rejim)
+  q2.setFromAxisAngle(_x, -Math.PI/2);
+  currentQ.multiply(q2);
+}
+
+// ── THREE SETUP ─────────────────────────────────
 function setupThree(){
   const canvas=document.getElementById('canvas');
+  const W=innerWidth, H=innerHeight;
   scene=new THREE.Scene();
-  camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.01,100);
+  camera=new THREE.PerspectiveCamera(65, W/H, .01, 100);
   renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});
-  renderer.setSize(innerWidth,innerHeight);
+  renderer.setSize(W,H);
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-  scene.add(new THREE.AmbientLight(0xffffff,.7));
-  const d=new THREE.DirectionalLight(0xffffff,1.3); d.position.set(5,8,5); scene.add(d);
-  const p=new THREE.PointLight(0x4fc3f7,1,15); p.position.set(-3,3,2); scene.add(p);
+
+  // Yorug'lik
+  scene.add(new THREE.AmbientLight(0xffffff,.65));
+  const d=new THREE.DirectionalLight(0xffffff,1.3);
+  d.position.set(5,8,5); scene.add(d);
+  const p=new THREE.PointLight(0x4fc3f7,.9,14);
+  p.position.set(-3,3,2); scene.add(p);
+
+  // worldGroup — bu "dunyo" ning anchor nuqtasi
+  // Camera shu groupning ichida bo'ladi (teskari tarzda)
+  worldGroup=new THREE.Group();
+  scene.add(worldGroup);
+
   buildMesh();
+  setStatus('<span class="dot"></span> Live');
+  setHint('📌 Joylashtir tugmasini bosing');
+
+  // Resize
   window.addEventListener('resize',()=>{
     camera.aspect=innerWidth/innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(innerWidth,innerHeight);
   });
+
+  // Touch drag (gyro yo'q bo'lsa)
+  setupTouch();
 }
 
 function buildMesh(){
   if(meshGroup) scene.remove(meshGroup);
   meshGroup=new THREE.Group();
   const col=COLORS[ci];
-  const mat=new THREE.MeshPhongMaterial({color:col,shininess:120,transparent:true,opacity:.92,side:THREE.DoubleSide});
-  const wm=new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:.13});
+  const mat=new THREE.MeshPhongMaterial({color:col,shininess:130,transparent:true,opacity:.92,side:THREE.DoubleSide});
+  const wm=new THREE.MeshBasicMaterial({wireframe:true,color:0xffffff,transparent:true,opacity:.13});
   const gm=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.12,side:THREE.BackSide});
-  let g,wg,gg;
   const sh=SHAPES[si];
-  if(sh==='box'){g=new THREE.BoxGeometry(1,1,1);wg=g.clone();gg=new THREE.BoxGeometry(1.18,1.18,1.18);}
-  else if(sh==='octahedron'){g=new THREE.OctahedronGeometry(.7);wg=g.clone();gg=new THREE.OctahedronGeometry(.84);}
-  else if(sh==='torus'){g=new THREE.TorusGeometry(.6,.22,18,60);wg=g.clone();gg=new THREE.TorusGeometry(.6,.28,18,60);}
-  else if(sh==='sphere'){g=new THREE.SphereGeometry(.6,32,32);wg=g.clone();gg=new THREE.SphereGeometry(.72,32,32);}
-  else{g=new THREE.ConeGeometry(.6,1.1,6);wg=g.clone();gg=new THREE.ConeGeometry(.72,1.24,6);}
+  let g,s2;
+  if(sh==='box'){        g=new THREE.BoxGeometry(1,1,1);          s2=new THREE.BoxGeometry(1.18,1.18,1.18);}
+  else if(sh==='octahedron'){g=new THREE.OctahedronGeometry(.7);  s2=new THREE.OctahedronGeometry(.85);}
+  else if(sh==='torus'){ g=new THREE.TorusGeometry(.6,.22,18,64); s2=new THREE.TorusGeometry(.6,.3,18,64);}
+  else if(sh==='sphere'){g=new THREE.SphereGeometry(.6,32,32);    s2=new THREE.SphereGeometry(.73,32,32);}
+  else{                  g=new THREE.ConeGeometry(.6,1.1,6);      s2=new THREE.ConeGeometry(.73,1.25,6);}
   meshGroup.add(new THREE.Mesh(g,mat));
-  meshGroup.add(new THREE.Mesh(wg,wm));
-  meshGroup.add(new THREE.Mesh(gg,gm));
+  meshGroup.add(new THREE.Mesh(g.clone(),wm));
+  meshGroup.add(new THREE.Mesh(s2,gm));
   meshGroup.position.set(0,0,-3);
   scene.add(meshGroup);
 }
 
-let t=0;
-function startLoop(){
-  setStatus('<span class="dot"></span> Live');
-  setHint('📌 Kubni joylashtirish uchun tugmani bosing');
-
-  // Touch drag (gyro yo\'q bo\'lsa)
-  document.addEventListener('touchstart',e=>{ lastT={x:e.touches[0].clientX,y:e.touches[0].clientY}; },{passive:true});
+// ── TOUCH DRAG (gyrosiz) ─────────────────────────
+let touchYaw=0, touchPitch=0, lastT=null;
+function setupTouch(){
+  document.addEventListener('touchstart',e=>{lastT={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
   document.addEventListener('touchmove',e=>{
     if(!isAnchored||hasGyro||!lastT) return;
-    e.preventDefault();
-    const dx=e.touches[0].clientX-lastT.x;
-    const dy=e.touches[0].clientY-lastT.y;
-    camYaw-=dx*.004; camPitch-=dy*.004;
-    camPitch=Math.max(-.9,Math.min(.9,camPitch));
+    touchYaw  -=(e.touches[0].clientX-lastT.x)*.004;
+    touchPitch-=(e.touches[0].clientY-lastT.y)*.004;
+    touchPitch=Math.max(-.9,Math.min(.9,touchPitch));
     lastT={x:e.touches[0].clientX,y:e.touches[0].clientY};
-  },{passive:false});
-
-  function loop(){
-    requestAnimationFrame(loop);
-    t+=.016;
-    if(!isAnchored){
-      meshGroup.position.set(Math.sin(t*.5)*.22,Math.sin(t*.7)*.1,-2.6);
-      meshGroup.rotation.x=t*.35;
-      meshGroup.rotation.y=t*.55;
-      camera.rotation.set(0,0,0);
-    } else {
-      meshGroup.position.set(0,0,-3);
-      meshGroup.rotation.y+=.006;
-      if(hasGyro){
-        let dy=gyro.alpha-anchorAlpha;
-        if(dy>180)dy-=360; if(dy<-180)dy+=360;
-        const dp=gyro.beta-anchorBeta;
-        camera.rotation.order='YXZ';
-        camera.rotation.y=dy*Math.PI/180*-1;
-        camera.rotation.x=dp*Math.PI/180*-.4;
-        camera.rotation.z=gyro.gamma*Math.PI/180*.22;
-      } else {
-        camera.rotation.order='YXZ';
-        camera.rotation.y=camYaw;
-        camera.rotation.x=camPitch;
-      }
-    }
-    renderer.render(scene,camera);
-  }
-  loop();
+  },{passive:true});
 }
 
+// ── ANCHOR ──────────────────────────────────────
 function placeAnchor(){
   isAnchored=true;
-  anchorAlpha=gyro.alpha; anchorBeta=gyro.beta;
-  camYaw=0; camPitch=0;
+  // Joylashtirilgan paytdagi quaternion ni saqlab qolamiz
+  anchorQ.copy(currentQ);
+  touchYaw=0; touchPitch=0;
   document.getElementById('placeBtn').style.display='none';
   document.getElementById('resetBtn').style.display='inline-block';
   setStatus('✅ Joylashtirildi!');
-  setHint(hasGyro ? '📱 Aylanting — kub joyida qoladi!' : '👆 Ekranni sudrab aylanting');
+  setHint(hasGyro?'📱 Aylanting — kub joyida qoladi!':'👆 Ekranni sudrab aylanting');
 }
 function resetAnchor(){
-  isAnchored=false; camYaw=0; camPitch=0;
-  camera.rotation.set(0,0,0);
+  isAnchored=false;
+  touchYaw=0; touchPitch=0;
+  camera.quaternion.set(0,0,0,1);
+  camera.position.set(0,0,0);
   document.getElementById('placeBtn').style.display='inline-block';
   document.getElementById('resetBtn').style.display='none';
   setStatus('<span class="dot"></span> Live');
-  setHint('📌 Kubni joylashtirish uchun tugmani bosing');
+  setHint('📌 Joylashtir tugmasini bosing');
 }
+
+// ── RENDER LOOP ──────────────────────────────────
+let t=0;
+const deltaQ=new THREE.Quaternion();
+const invAnchor=new THREE.Quaternion();
+
+function loop(){
+  requestAnimationFrame(loop);
+  t+=.016;
+
+  if(!isAnchored){
+    // Preview: kub oldinga suzib yuradi
+    meshGroup.position.set(Math.sin(t*.5)*.2, Math.sin(t*.7)*.1, -2.6);
+    meshGroup.rotation.x=t*.35;
+    meshGroup.rotation.y=t*.55;
+    camera.quaternion.set(0,0,0,1);
+    camera.position.set(0,0,0);
+  } else {
+    meshGroup.position.set(0,0,-3);
+    meshGroup.rotation.y+=.006; // sekin aylanadi
+
+    if(hasGyro){
+      // Delta = anchor^(-1) * current
+      // Bu "anchor dan qancha o'zgardik" ni beradi
+      invAnchor.copy(anchorQ).invert();
+      deltaQ.multiplyQuaternions(invAnchor, currentQ);
+
+      // Kamerani delta ga qarama-qarshi yo'naltiramiz
+      // (kub dunyoda qolsin, kamera harakat qilsin)
+      camera.quaternion.copy(deltaQ);
+    } else {
+      camera.rotation.order='YXZ';
+      camera.rotation.y=touchYaw;
+      camera.rotation.x=touchPitch;
+    }
+    camera.position.set(0,0,0);
+  }
+
+  renderer.render(scene,camera);
+}
+
 function changeColor(){ ci=(ci+1)%COLORS.length; buildMesh(); }
 function changeShape(){ si=(si+1)%SHAPES.length; buildMesh(); }
 function setStatus(h){ document.getElementById('status').innerHTML=h; }
