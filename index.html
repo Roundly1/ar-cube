@@ -4,192 +4,150 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>AR Hand Gesture</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{background:#000;overflow:hidden;font-family:Arial,sans-serif}
-  #video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
-  #canvas3d{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
-  #canvasHand{position:fixed;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
-  #info{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:7px 18px;border-radius:20px;font-size:13px;white-space:nowrap;z-index:10}
-  #gesture{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:rgba(79,195,247,.25);border:1px solid #4fc3f7;color:#fff;padding:6px 16px;border-radius:16px;font-size:15px;z-index:10;transition:.3s;opacity:0}
-  #legend{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:10px 18px;border-radius:16px;font-size:12px;z-index:10;line-height:1.9;text-align:center}
-  #start{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:100;display:flex;align-items:center;justify-content:center}
-  #startBox{background:#111827;border:2px solid #4fc3f7;border-radius:24px;padding:32px 24px;text-align:center;color:#fff;max-width:310px}
-  #startBox h2{font-size:20px;margin-bottom:10px}
-  #startBox p{color:#9ca3af;font-size:13px;line-height:1.7;margin-bottom:22px}
-  #startBox button{width:100%;padding:13px;background:#4fc3f7;border:none;border-radius:14px;font-size:15px;font-weight:bold;color:#000;cursor:pointer}
-  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4CAF50;animation:bl 1s infinite;margin-right:5px;vertical-align:middle}
-  @keyframes bl{0%,100%{opacity:1}50%{opacity:.2}}
-</style>
-</head>
-<body>
-<video id="video" autoplay playsinline muted></video>
-<canvas id="canvas3d"></canvas>
-<canvas id="canvasHand"></canvas>
-<div id="info">⏳ Yuklanmoqda…</div>
-<div id="gesture">👋</div>
-<div id="legend">
-  ☝️ 1 barmoq → Kattalashtir<br>
-  ✌️ 2 barmoq → Kichraytir<br>
-  🤚 5 barmoq → Rang almashtir<br>
-  👊 Musht → Shakl almashtir
-</div>
+diff --git a/index.html b/index.html
+index c2c1b5bbd08de9f5ebf036422816018bd034e4ad..0474bb1b5aaa402d0a3d8ff95ab3b58b314ca13a 100644
+--- a/index.html
++++ b/index.html
+@@ -7,74 +7,75 @@
+ <style>
+   *{margin:0;padding:0;box-sizing:border-box}
+   body{background:#000;overflow:hidden;font-family:Arial,sans-serif}
+   #video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+   #canvas3d{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+   #canvasHand{position:fixed;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
+   #info{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:7px 18px;border-radius:20px;font-size:13px;white-space:nowrap;z-index:10}
+   #gesture{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:rgba(79,195,247,.25);border:1px solid #4fc3f7;color:#fff;padding:6px 16px;border-radius:16px;font-size:15px;z-index:10;transition:.3s;opacity:0}
+   #legend{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:10px 18px;border-radius:16px;font-size:12px;z-index:10;line-height:1.9;text-align:center}
+   #start{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:100;display:flex;align-items:center;justify-content:center}
+   #startBox{background:#111827;border:2px solid #4fc3f7;border-radius:24px;padding:32px 24px;text-align:center;color:#fff;max-width:310px}
+   #startBox h2{font-size:20px;margin-bottom:10px}
+   #startBox p{color:#9ca3af;font-size:13px;line-height:1.7;margin-bottom:22px}
+   #startBox button{width:100%;padding:13px;background:#4fc3f7;border:none;border-radius:14px;font-size:15px;font-weight:bold;color:#000;cursor:pointer}
+   .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4CAF50;animation:bl 1s infinite;margin-right:5px;vertical-align:middle}
+   @keyframes bl{0%,100%{opacity:1}50%{opacity:.2}}
+ </style>
+ </head>
+ <body>
+ <video id="video" autoplay playsinline muted></video>
+ <canvas id="canvas3d"></canvas>
+ <canvas id="canvasHand"></canvas>
+ <div id="info">⏳ Yuklanmoqda…</div>
+ <div id="gesture">👋</div>
+ <div id="legend">
+-  ☝️ 1 barmoq → Kattalashtir<br>
+-  ✌️ 2 barmoq → Kichraytir<br>
++  ☝️ 1 barmoq → Kubni katta qil<br>
++  ✌️ 2 barmoq → Kubni kichik qil<br>
+   🤚 5 barmoq → Rang almashtir<br>
+   👊 Musht → Shakl almashtir
+ </div>
+ 
+ <div id="start">
+   <div id="startBox">
+     <h2>🖐 AR Hand Gesture</h2>
+-    <p>Kamera orqali qo'lingizni taniydi.<br>Barmoqlar bilan 3D modelni boshqaring!</p>
++    <p>Kamera orqali qo'lingizni taniydi.<br>1 barmoq kubni kattalashtiradi, 2 barmoq kichraytiradi.</p>
+     <button onclick="startApp()">▶ Boshlash</button>
+   </div>
+ </div>
+ 
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+ <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+ <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+ <script>
+ // ── CONFIG ─────────────────────────────────────
+ const COLORS = [0x4fc3f7,0xff6b6b,0x69f0ae,0xffeb3b,0xce93d8,0xff8a65];
+ const SHAPES  = ['Kub','Sfera','Oktaedr','Torus','Konus','Silindr'];
+ let ci=0, si=0;
+ let currentScale=1.0;
++const SCALE_PRESETS = { big: 1.9, small: 0.65 };
+ 
+ // Gyro
+ let gyroQ=new THREE.Quaternion(), hasGyro=false;
+ let manualYaw=0, manualPitch=0, isDragging=false, lastX=0, lastY=0;
+ 
+ // Gesture cooldown
+ let lastGestureTime=0;
+ const COOLDOWN=1200; // ms
+ 
+ // ── THREE ──────────────────────────────────────
+ let renderer,scene,camera,mesh;
+ 
+ // ── MEDIAPIPE ──────────────────────────────────
+ let hands, mpCamera;
+ let landmarksData=null;
+ 
+ async function startApp(){
+   document.getElementById('start').style.display='none';
+   setInfo('⏳ Model yuklanmoqda…');
+ 
+   const video=document.getElementById('video');
+ 
+   // Gyro
+   if(typeof DeviceOrientationEvent!=='undefined'){
+     if(typeof DeviceOrientationEvent.requestPermission==='function'){
+@@ -138,55 +139,55 @@ function onHandResults(results){
+ 
+ // ── GESTURE DETECTION ──────────────────────────
+ function isFingerUp(lm, tip, pip){
+   return lm[tip].y < lm[pip].y;
+ }
+ 
+ function detectGesture(lm){
+   const thumb  = lm[4].x < lm[3].x; // thumb extended (mirrored)
+   const index  = isFingerUp(lm,8,6);
+   const middle = isFingerUp(lm,12,10);
+   const ring   = isFingerUp(lm,16,14);
+   const pinky  = isFingerUp(lm,20,18);
+ 
+   const count=[index,middle,ring,pinky].filter(Boolean).length;
+ 
+   if(count===0 && !thumb) return 'fist';      // 👊 Musht
+   if(count===1 && index && !middle) return 'one';   // ☝️
+   if(count===2 && index && middle && !ring) return 'two'; // ✌️
+   if(count===4 && thumb) return 'five';       // 🤚 5 barmoq
+   return null;
+ }
+ 
+ function applyGesture(g){
+   lastGestureTime=Date.now();
+   if(g==='one'){
+-    currentScale=Math.min(3.5, currentScale+0.25);
+-    showGesture('☝️ Kattalashtirish');
++    currentScale=SCALE_PRESETS.big;
++    showGesture('☝️ 1 barmoq: kub katta');
+   } else if(g==='two'){
+-    currentScale=Math.max(0.3, currentScale-0.25);
+-    showGesture('✌️ Kichraytirish');
++    currentScale=SCALE_PRESETS.small;
++    showGesture('✌️ 2 barmoq: kub kichik');
+   } else if(g==='five'){
+     ci=(ci+1)%COLORS.length;
+     buildMesh();
+     showGesture('🤚 Rang almashdi!');
+   } else if(g==='fist'){
+     si=(si+1)%SHAPES.length;
+     buildMesh();
+     showGesture('👊 Shakl almashdi: '+SHAPES[si]);
+   }
+ }
+ 
+ let gestureTimer=null;
+ function showGesture(txt){
+   const el=document.getElementById('gesture');
+   el.textContent=txt;
+   el.style.opacity='1';
+   clearTimeout(gestureTimer);
+   gestureTimer=setTimeout(()=>{ el.style.opacity='0'; },1500);
+ }
+ 
+ // ── GYRO ───────────────────────────────────────
+ const _ex=new THREE.Euler();
+ function onGyro(e){
+   if(e.alpha==null) return;
+   hasGyro=true;
 
-<div id="start">
-  <div id="startBox">
-    <h2>🖐 AR Hand Gesture</h2>
-    <p>Kamera orqali qo'lingizni taniydi.<br>Barmoqlar bilan 3D modelni boshqaring!</p>
-    <button onclick="startApp()">▶ Boshlash</button>
-  </div>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-<script>
-// ── CONFIG ─────────────────────────────────────
-const COLORS = [0x4fc3f7,0xff6b6b,0x69f0ae,0xffeb3b,0xce93d8,0xff8a65];
-const SHAPES  = ['Kub','Sfera','Oktaedr','Torus','Konus','Silindr'];
-let ci=0, si=0;
-let currentScale=1.0;
-
-// Gyro
-let gyroQ=new THREE.Quaternion(), hasGyro=false;
-let manualYaw=0, manualPitch=0, isDragging=false, lastX=0, lastY=0;
-
-// Gesture cooldown
-let lastGestureTime=0;
-const COOLDOWN=1200; // ms
-
-// ── THREE ──────────────────────────────────────
-let renderer,scene,camera,mesh;
-
-// ── MEDIAPIPE ──────────────────────────────────
-let hands, mpCamera;
-let landmarksData=null;
-
-async function startApp(){
-  document.getElementById('start').style.display='none';
-  setInfo('⏳ Model yuklanmoqda…');
-
-  const video=document.getElementById('video');
-
-  // Gyro
-  if(typeof DeviceOrientationEvent!=='undefined'){
-    if(typeof DeviceOrientationEvent.requestPermission==='function'){
-      try{ await DeviceOrientationEvent.requestPermission(); }catch(_){}
-    }
-    window.addEventListener('deviceorientation',onGyro,{passive:true});
-  }
-
-  setupThree();
-
-  // MediaPipe Hands — u kamerani o'zi ochadi
-  hands=new Hands({locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-  hands.setOptions({
-    maxNumHands:1,
-    modelComplexity:0,
-    minDetectionConfidence:0.7,
-    minTrackingConfidence:0.5
-  });
-  hands.onResults(onHandResults);
-
-  // MediaPipe Camera — kamerani faqat shu orqali ochamiz
-  mpCamera=new Camera(video,{
-    onFrame: async()=>{ await hands.send({image:video}); },
-    width:640, height:480
-  });
-  mpCamera.start();
-
-  setInfo('<span class="dot"></span>Tayyor — qo\'lni ko\'rsating!');
-  renderLoop();
-}
-
-// ── HAND RESULTS ───────────────────────────────
-const handCanvas=document.getElementById('canvasHand');
-const hCtx=handCanvas.getContext('2d');
-
-function onHandResults(results){
-  // Canvas o'lchamini moslashtir
-  handCanvas.width=innerWidth;
-  handCanvas.height=innerHeight;
-  hCtx.clearRect(0,0,innerWidth,innerHeight);
-
-  if(!results.multiHandLandmarks || results.multiHandLandmarks.length===0){
-    landmarksData=null;
-    return;
-  }
-
-  const lm=results.multiHandLandmarks[0];
-  landmarksData=lm;
-
-  // Qo'l skeletini chiz
-  drawConnectors(hCtx, lm, HAND_CONNECTIONS, {color:'rgba(79,195,247,0.6)',lineWidth:2});
-  drawLandmarks(hCtx, lm, {color:'#4fc3f7',fillColor:'rgba(255,255,255,0.8)',lineWidth:1,radius:3});
-
-  // Gesture aniqlash
-  const now=Date.now();
-  if(now-lastGestureTime > COOLDOWN){
-    const g=detectGesture(lm);
-    if(g) applyGesture(g);
-  }
-}
-
-// ── GESTURE DETECTION ──────────────────────────
-function isFingerUp(lm, tip, pip){
-  return lm[tip].y < lm[pip].y;
-}
-
-function detectGesture(lm){
-  const thumb  = lm[4].x < lm[3].x; // thumb extended (mirrored)
-  const index  = isFingerUp(lm,8,6);
-  const middle = isFingerUp(lm,12,10);
-  const ring   = isFingerUp(lm,16,14);
-  const pinky  = isFingerUp(lm,20,18);
-
-  const count=[index,middle,ring,pinky].filter(Boolean).length;
-
-  if(count===0 && !thumb) return 'fist';      // 👊 Musht
-  if(count===1 && index && !middle) return 'one';   // ☝️
-  if(count===2 && index && middle && !ring) return 'two'; // ✌️
-  if(count===4 && thumb) return 'five';       // 🤚 5 barmoq
-  return null;
-}
-
-function applyGesture(g){
-  lastGestureTime=Date.now();
-  if(g==='one'){
-    currentScale=Math.min(3.5, currentScale+0.25);
-    showGesture('☝️ Kattalashtirish');
-  } else if(g==='two'){
-    currentScale=Math.max(0.3, currentScale-0.25);
-    showGesture('✌️ Kichraytirish');
-  } else if(g==='five'){
-    ci=(ci+1)%COLORS.length;
-    buildMesh();
-    showGesture('🤚 Rang almashdi!');
-  } else if(g==='fist'){
-    si=(si+1)%SHAPES.length;
-    buildMesh();
-    showGesture('👊 Shakl almashdi: '+SHAPES[si]);
-  }
-}
-
-let gestureTimer=null;
-function showGesture(txt){
-  const el=document.getElementById('gesture');
-  el.textContent=txt;
-  el.style.opacity='1';
-  clearTimeout(gestureTimer);
-  gestureTimer=setTimeout(()=>{ el.style.opacity='0'; },1500);
-}
-
-// ── GYRO ───────────────────────────────────────
-const _ex=new THREE.Euler();
-function onGyro(e){
-  if(e.alpha==null) return;
-  hasGyro=true;
   _ex.set(
     THREE.MathUtils.degToRad(e.beta),
     THREE.MathUtils.degToRad(e.alpha),
