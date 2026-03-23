@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AR 3D Kub</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#000;overflow:hidden;font-family:Arial,sans-serif}
+  #video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+  #canvas{position:fixed;inset:0;width:100%;height:100%;z-index:1}
+  #overlay{position:fixed;inset:0;z-index:10;pointer-events:none}
+  #status{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:7px 16px;border-radius:20px;font-size:13px;white-space:nowrap;pointer-events:none}
+  #hint{position:absolute;bottom:110px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);color:#fff;padding:6px 14px;border-radius:16px;font-size:12px;white-space:nowrap}
+  #btns{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:all;flex-wrap:wrap;justify-content:center;padding:0 10px}
+  button{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.5);color:#fff;padding:10px 15px;border-radius:22px;font-size:13px;cursor:pointer}
+  button.primary{background:rgba(79,195,247,.4);border-color:#4fc3f7}
+  #permBtn{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:100;background:rgba(0,0,0,.75)}
+  #permBox{background:#1a1a2e;border:2px solid #4fc3f7;border-radius:24px;padding:32px 28px;text-align:center;max-width:320px;color:#fff}
+  #permBox h2{font-size:22px;margin-bottom:12px}
+  #permBox p{font-size:14px;color:#aaa;margin-bottom:24px;line-height:1.6}
+  #permBox button{width:100%;padding:14px;font-size:16px;border-radius:16px;background:#4fc3f7;border:none;color:#000;font-weight:bold;cursor:pointer}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#4CAF50;animation:blink 1s infinite;margin-right:5px}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+</style>
+</head>
+<body>
+<video id="video" autoplay playsinline muted></video>
+<canvas id="canvas"></canvas>
+<div id="overlay">
+  <div id="status">⏳ Yuklanmoqda…</div>
+  <div id="hint" id="hint">Yuklanmoqda…</div>
+  <div id="btns">
+    <button onclick="changeColor()">🎨</button>
+    <button onclick="changeShape()">🔷</button>
+    <button class="primary" id="placeBtn" onclick="placeAnchor()">📌 Joylashtir</button>
+    <button id="resetBtn" style="display:none" onclick="resetAnchor()">🔄 Reset</button>
+  </div>
+</div>
+
+<!-- Permission screen -->
+<div id="permBtn">
+  <div id="permBox">
+    <h2>🎯 AR 3D Kub</h2>
+    <p>Kamera va harakat sensorlari uchun ruxsat kerak.<br>Ular orqali 3D ob'ekt real dunyonga joylashtiriladi.</p>
+    <button onclick="requestAll()">✅ Ruxsat Berish va Boshlash</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const COLORS=[0x4fc3f7,0xff6b6b,0x69f0ae,0xffeb3b,0xce93d8,0xff8a65];
+const SHAPES=['box','octahedron','torus','sphere','cone'];
+let ci=0,si=0;
+let isAnchored=false;
+let anchorAlpha=0,anchorBeta=0;
+let gyro={alpha:0,beta:0,gamma:0},hasGyro=false;
+let renderer,scene,camera,meshGroup;
+let camYaw=0,camPitch=0,lastT=null;
+
+async function requestAll(){
+  document.getElementById('permBtn').style.display='none';
+
+  // 1. Kamera
+  try{
+    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    document.getElementById('video').srcObject=s;
+  }catch(e){ setStatus('⚠️ Kamera ruxsati berilmadi'); }
+
+  // 2. Gyro — iOS
+  if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+    try{
+      const r=await DeviceOrientationEvent.requestPermission();
+      if(r==='granted') bindGyro();
+      else setStatus('⚠️ Gyro ruxsati berilmadi — barmoq bilan aylantiring');
+    }catch(e){ bindGyro(); }
+  } else {
+    // Android — ruxsat so'ralmaydi
+    bindGyro();
+  }
+
+  setupThree();
+  startLoop();
+}
+
+function bindGyro(){
+  window.addEventListener('deviceorientation',e=>{
+    if(e.alpha!=null){
+      hasGyro=true;
+      gyro.alpha=e.alpha||0;
+      gyro.beta=e.beta||0;
+      gyro.gamma=e.gamma||0;
+      setStatus('<span class="dot"></span>Gyro aktiv ✅');
+    }
+  },{passive:true});
+
+  // 0.5 soniya kutib tekshiramiz
+  setTimeout(()=>{
+    if(!hasGyro){
+      setStatus('⚠️ Gyro aniqlanmadi — barmoq bilan aylantiring');
+      setHint('Joylashtirgandan keyin ekranni sudrab aylanting');
+    }
+  },600);
+}
+
+function setupThree(){
+  const canvas=document.getElementById('canvas');
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.01,100);
+  renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  scene.add(new THREE.AmbientLight(0xffffff,.7));
+  const d=new THREE.DirectionalLight(0xffffff,1.3); d.position.set(5,8,5); scene.add(d);
+  const p=new THREE.PointLight(0x4fc3f7,1,15); p.position.set(-3,3,2); scene.add(p);
+  buildMesh();
+  window.addEventListener('resize',()=>{
+    camera.aspect=innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+  });
+}
+
+function buildMesh(){
+  if(meshGroup) scene.remove(meshGroup);
+  meshGroup=new THREE.Group();
+  const col=COLORS[ci];
+  const mat=new THREE.MeshPhongMaterial({color:col,shininess:120,transparent:true,opacity:.92,side:THREE.DoubleSide});
+  const wm=new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:.13});
+  const gm=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.12,side:THREE.BackSide});
+  let g,wg,gg;
+  const sh=SHAPES[si];
+  if(sh==='box'){g=new THREE.BoxGeometry(1,1,1);wg=g.clone();gg=new THREE.BoxGeometry(1.18,1.18,1.18);}
+  else if(sh==='octahedron'){g=new THREE.OctahedronGeometry(.7);wg=g.clone();gg=new THREE.OctahedronGeometry(.84);}
+  else if(sh==='torus'){g=new THREE.TorusGeometry(.6,.22,18,60);wg=g.clone();gg=new THREE.TorusGeometry(.6,.28,18,60);}
+  else if(sh==='sphere'){g=new THREE.SphereGeometry(.6,32,32);wg=g.clone();gg=new THREE.SphereGeometry(.72,32,32);}
+  else{g=new THREE.ConeGeometry(.6,1.1,6);wg=g.clone();gg=new THREE.ConeGeometry(.72,1.24,6);}
+  meshGroup.add(new THREE.Mesh(g,mat));
+  meshGroup.add(new THREE.Mesh(wg,wm));
+  meshGroup.add(new THREE.Mesh(gg,gm));
+  meshGroup.position.set(0,0,-3);
+  scene.add(meshGroup);
+}
+
+let t=0;
+function startLoop(){
+  setStatus('<span class="dot"></span> Live');
+  setHint('📌 Kubni joylashtirish uchun tugmani bosing');
+
+  // Touch drag (gyro yo\'q bo\'lsa)
+  document.addEventListener('touchstart',e=>{ lastT={x:e.touches[0].clientX,y:e.touches[0].clientY}; },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!isAnchored||hasGyro||!lastT) return;
+    e.preventDefault();
+    const dx=e.touches[0].clientX-lastT.x;
+    const dy=e.touches[0].clientY-lastT.y;
+    camYaw-=dx*.004; camPitch-=dy*.004;
+    camPitch=Math.max(-.9,Math.min(.9,camPitch));
+    lastT={x:e.touches[0].clientX,y:e.touches[0].clientY};
+  },{passive:false});
+
+  function loop(){
+    requestAnimationFrame(loop);
+    t+=.016;
+    if(!isAnchored){
+      meshGroup.position.set(Math.sin(t*.5)*.22,Math.sin(t*.7)*.1,-2.6);
+      meshGroup.rotation.x=t*.35;
+      meshGroup.rotation.y=t*.55;
+      camera.rotation.set(0,0,0);
+    } else {
+      meshGroup.position.set(0,0,-3);
+      meshGroup.rotation.y+=.006;
+      if(hasGyro){
+        let dy=gyro.alpha-anchorAlpha;
+        if(dy>180)dy-=360; if(dy<-180)dy+=360;
+        const dp=gyro.beta-anchorBeta;
+        camera.rotation.order='YXZ';
+        camera.rotation.y=dy*Math.PI/180*-1;
+        camera.rotation.x=dp*Math.PI/180*-.4;
+        camera.rotation.z=gyro.gamma*Math.PI/180*.22;
+      } else {
+        camera.rotation.order='YXZ';
+        camera.rotation.y=camYaw;
+        camera.rotation.x=camPitch;
+      }
+    }
+    renderer.render(scene,camera);
+  }
+  loop();
+}
+
+function placeAnchor(){
+  isAnchored=true;
+  anchorAlpha=gyro.alpha; anchorBeta=gyro.beta;
+  camYaw=0; camPitch=0;
+  document.getElementById('placeBtn').style.display='none';
+  document.getElementById('resetBtn').style.display='inline-block';
+  setStatus('✅ Joylashtirildi!');
+  setHint(hasGyro ? '📱 Aylanting — kub joyida qoladi!' : '👆 Ekranni sudrab aylanting');
+}
+function resetAnchor(){
+  isAnchored=false; camYaw=0; camPitch=0;
+  camera.rotation.set(0,0,0);
+  document.getElementById('placeBtn').style.display='inline-block';
+  document.getElementById('resetBtn').style.display='none';
+  setStatus('<span class="dot"></span> Live');
+  setHint('📌 Kubni joylashtirish uchun tugmani bosing');
+}
+function changeColor(){ ci=(ci+1)%COLORS.length; buildMesh(); }
+function changeShape(){ si=(si+1)%SHAPES.length; buildMesh(); }
+function setStatus(h){ document.getElementById('status').innerHTML=h; }
+function setHint(h){ document.getElementById('hint').textContent=h; }
+</script>
+</body>
+</html>
