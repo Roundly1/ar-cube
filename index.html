@@ -73,20 +73,7 @@ async function startApp(){
   document.getElementById('start').style.display='none';
   setInfo('⏳ Model yuklanmoqda…');
 
-  // Kamera
   const video=document.getElementById('video');
-  try{
-    const s=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}
-    });
-    video.srcObject=s;
-  }catch(e){
-    // Front camera fallback
-    try{
-      const s=await navigator.mediaDevices.getUserMedia({video:true});
-      video.srcObject=s;
-    }catch(e2){ setInfo('⚠️ Kamera ruxsati kerak'); }
-  }
 
   // Gyro
   if(typeof DeviceOrientationEvent!=='undefined'){
@@ -98,17 +85,17 @@ async function startApp(){
 
   setupThree();
 
-  // MediaPipe Hands
+  // MediaPipe Hands — u kamerani o'zi ochadi
   hands=new Hands({locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
   hands.setOptions({
     maxNumHands:1,
-    modelComplexity:0,       // 0 = tez, telefon uchun
+    modelComplexity:0,
     minDetectionConfidence:0.7,
     minTrackingConfidence:0.5
   });
   hands.onResults(onHandResults);
 
-  // MediaPipe Camera (video dan frame olib beradi)
+  // MediaPipe Camera — kamerani faqat shu orqali ochamiz
   mpCamera=new Camera(video,{
     onFrame: async()=>{ await hands.send({image:video}); },
     width:640, height:480
