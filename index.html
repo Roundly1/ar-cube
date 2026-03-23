@@ -3,97 +3,206 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>AR 3D</title>
+<title>AR Hand Gesture</title>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box }
-  body { background:#000; overflow:hidden; font-family:Arial,sans-serif }
-  #video { position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:0 }
-  #canvas { position:fixed; inset:0; width:100%; height:100%; z-index:1; pointer-events:none }
-  #ui { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:10; display:flex; gap:10px }
-  button { background:rgba(255,255,255,.2); border:1.5px solid rgba(255,255,255,.5); color:#fff; padding:11px 18px; border-radius:22px; font-size:14px; cursor:pointer; backdrop-filter:blur(8px) }
-  button.active { background:rgba(79,195,247,.45); border-color:#4fc3f7 }
-  #info { position:fixed; top:16px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.55); color:#fff; padding:7px 16px; border-radius:20px; font-size:13px; white-space:nowrap; z-index:10 }
-  #start { position:fixed; inset:0; background:rgba(0,0,0,.88); z-index:100; display:flex; align-items:center; justify-content:center }
-  #startBox { background:#111827; border:2px solid #4fc3f7; border-radius:24px; padding:36px 28px; text-align:center; color:#fff; max-width:300px }
-  #startBox h2 { font-size:22px; margin-bottom:12px }
-  #startBox p { color:#9ca3af; font-size:14px; line-height:1.6; margin-bottom:24px }
-  #startBox button { width:100%; padding:14px; background:#4fc3f7; border:none; border-radius:14px; font-size:16px; font-weight:bold; color:#000; cursor:pointer }
-  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#4CAF50; animation:bl 1s infinite; margin-right:6px }
-  @keyframes bl { 0%,100%{opacity:1}50%{opacity:.2} }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#000;overflow:hidden;font-family:Arial,sans-serif}
+  #video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+  #canvas3d{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+  #canvasHand{position:fixed;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
+  #info{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:7px 18px;border-radius:20px;font-size:13px;white-space:nowrap;z-index:10}
+  #gesture{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:rgba(79,195,247,.25);border:1px solid #4fc3f7;color:#fff;padding:6px 16px;border-radius:16px;font-size:15px;z-index:10;transition:.3s;opacity:0}
+  #legend{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:10px 18px;border-radius:16px;font-size:12px;z-index:10;line-height:1.9;text-align:center}
+  #start{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:100;display:flex;align-items:center;justify-content:center}
+  #startBox{background:#111827;border:2px solid #4fc3f7;border-radius:24px;padding:32px 24px;text-align:center;color:#fff;max-width:310px}
+  #startBox h2{font-size:20px;margin-bottom:10px}
+  #startBox p{color:#9ca3af;font-size:13px;line-height:1.7;margin-bottom:22px}
+  #startBox button{width:100%;padding:13px;background:#4fc3f7;border:none;border-radius:14px;font-size:15px;font-weight:bold;color:#000;cursor:pointer}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4CAF50;animation:bl 1s infinite;margin-right:5px;vertical-align:middle}
+  @keyframes bl{0%,100%{opacity:1}50%{opacity:.2}}
 </style>
 </head>
 <body>
 <video id="video" autoplay playsinline muted></video>
-<canvas id="canvas"></canvas>
+<canvas id="canvas3d"></canvas>
+<canvas id="canvasHand"></canvas>
 <div id="info">⏳ Yuklanmoqda…</div>
-<div id="ui">
-  <button onclick="prevShape()">◀</button>
-  <button onclick="changeColor()">🎨 Rang</button>
-  <button onclick="nextShape()">▶</button>
+<div id="gesture">👋</div>
+<div id="legend">
+  ☝️ 1 barmoq → Kattalashtir<br>
+  ✌️ 2 barmoq → Kichraytir<br>
+  🤚 5 barmoq → Rang almashtir<br>
+  👊 Musht → Shakl almashtir
 </div>
 
 <div id="start">
   <div id="startBox">
-    <h2>🎯 AR 3D Viewer</h2>
-    <p>Telefon orqa kamerasi orqali live video ko'rsatiladi.<br>3D model ustiga qo'yiladi.<br>Telefoningizni aylating — modelni har tomondan ko'ring!</p>
+    <h2>🖐 AR Hand Gesture</h2>
+    <p>Kamera orqali qo'lingizni taniydi.<br>Barmoqlar bilan 3D modelni boshqaring!</p>
     <button onclick="startApp()">▶ Boshlash</button>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 <script>
-const COLORS = [0x4fc3f7, 0xff6b6b, 0x69f0ae, 0xffeb3b, 0xce93d8, 0xff8a65, 0xffffff];
-const SHAPES  = ['Kub', 'Sfera', 'Oktaedr', 'Torus', 'Konus', 'Silindr'];
-let ci = 0, si = 0;
+// ── CONFIG ─────────────────────────────────────
+const COLORS = [0x4fc3f7,0xff6b6b,0x69f0ae,0xffeb3b,0xce93d8,0xff8a65];
+const SHAPES  = ['Kub','Sfera','Oktaedr','Torus','Konus','Silindr'];
+let ci=0, si=0;
+let currentScale=1.0;
 
-let renderer, scene, camera, mesh;
-let gyroQ = new THREE.Quaternion();
-let hasGyro = false;
+// Gyro
+let gyroQ=new THREE.Quaternion(), hasGyro=false;
+let manualYaw=0, manualPitch=0, isDragging=false, lastX=0, lastY=0;
 
-// Touch fallback
-let isDragging = false, lastX = 0, lastY = 0;
-let manualYaw = 0, manualPitch = 0;
+// Gesture cooldown
+let lastGestureTime=0;
+const COOLDOWN=1200; // ms
 
-// Zoom
-let currentScale = 1.0;
-let lastPinchDist = null;
-// Akselerometr orqali zoom
-let accelZ = 0, smoothAccel = 0;
+// ── THREE ──────────────────────────────────────
+let renderer,scene,camera,mesh;
 
-async function startApp() {
-  document.getElementById('start').style.display = 'none';
+// ── MEDIAPIPE ──────────────────────────────────
+let hands, mpCamera;
+let landmarksData=null;
+
+async function startApp(){
+  document.getElementById('start').style.display='none';
+  setInfo('⏳ Model yuklanmoqda…');
 
   // Kamera
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width:{ideal:1920}, height:{ideal:1080} }
+  const video=document.getElementById('video');
+  try{
+    const s=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}
     });
-    document.getElementById('video').srcObject = stream;
-  } catch(e) {
-    setInfo('⚠️ Kamera ruxsati berilmadi');
+    video.srcObject=s;
+  }catch(e){
+    // Front camera fallback
+    try{
+      const s=await navigator.mediaDevices.getUserMedia({video:true});
+      video.srcObject=s;
+    }catch(e2){ setInfo('⚠️ Kamera ruxsati kerak'); }
   }
 
   // Gyro
-  if (typeof DeviceOrientationEvent !== 'undefined') {
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-      try { await DeviceOrientationEvent.requestPermission(); } catch(_) {}
+  if(typeof DeviceOrientationEvent!=='undefined'){
+    if(typeof DeviceOrientationEvent.requestPermission==='function'){
+      try{ await DeviceOrientationEvent.requestPermission(); }catch(_){}
     }
-    window.addEventListener('deviceorientation', onGyro, { passive: true });
-    setTimeout(() => {
-      if (!hasGyro) setInfo('⚠️ Gyro yo\'q — ekranni suring');
-    }, 1000);
+    window.addEventListener('deviceorientation',onGyro,{passive:true});
   }
 
   setupThree();
+
+  // MediaPipe Hands
+  hands=new Hands({locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+  hands.setOptions({
+    maxNumHands:1,
+    modelComplexity:0,       // 0 = tez, telefon uchun
+    minDetectionConfidence:0.7,
+    minTrackingConfidence:0.5
+  });
+  hands.onResults(onHandResults);
+
+  // MediaPipe Camera (video dan frame olib beradi)
+  mpCamera=new Camera(video,{
+    onFrame: async()=>{ await hands.send({image:video}); },
+    width:640, height:480
+  });
+  mpCamera.start();
+
+  setInfo('<span class="dot"></span>Tayyor — qo\'lni ko\'rsating!');
   renderLoop();
 }
 
-// ── GYRO → Quaternion ──────────────────────────
-const _ex = new THREE.Euler();
-function onGyro(e) {
-  if (e.alpha == null) return;
-  hasGyro = true;
-  // DeviceOrientation → Three.js kamera quaternion
+// ── HAND RESULTS ───────────────────────────────
+const handCanvas=document.getElementById('canvasHand');
+const hCtx=handCanvas.getContext('2d');
+
+function onHandResults(results){
+  // Canvas o'lchamini moslashtir
+  handCanvas.width=innerWidth;
+  handCanvas.height=innerHeight;
+  hCtx.clearRect(0,0,innerWidth,innerHeight);
+
+  if(!results.multiHandLandmarks || results.multiHandLandmarks.length===0){
+    landmarksData=null;
+    return;
+  }
+
+  const lm=results.multiHandLandmarks[0];
+  landmarksData=lm;
+
+  // Qo'l skeletini chiz
+  drawConnectors(hCtx, lm, HAND_CONNECTIONS, {color:'rgba(79,195,247,0.6)',lineWidth:2});
+  drawLandmarks(hCtx, lm, {color:'#4fc3f7',fillColor:'rgba(255,255,255,0.8)',lineWidth:1,radius:3});
+
+  // Gesture aniqlash
+  const now=Date.now();
+  if(now-lastGestureTime > COOLDOWN){
+    const g=detectGesture(lm);
+    if(g) applyGesture(g);
+  }
+}
+
+// ── GESTURE DETECTION ──────────────────────────
+function isFingerUp(lm, tip, pip){
+  return lm[tip].y < lm[pip].y;
+}
+
+function detectGesture(lm){
+  const thumb  = lm[4].x < lm[3].x; // thumb extended (mirrored)
+  const index  = isFingerUp(lm,8,6);
+  const middle = isFingerUp(lm,12,10);
+  const ring   = isFingerUp(lm,16,14);
+  const pinky  = isFingerUp(lm,20,18);
+
+  const count=[index,middle,ring,pinky].filter(Boolean).length;
+
+  if(count===0 && !thumb) return 'fist';      // 👊 Musht
+  if(count===1 && index && !middle) return 'one';   // ☝️
+  if(count===2 && index && middle && !ring) return 'two'; // ✌️
+  if(count===4 && thumb) return 'five';       // 🤚 5 barmoq
+  return null;
+}
+
+function applyGesture(g){
+  lastGestureTime=Date.now();
+  if(g==='one'){
+    currentScale=Math.min(3.5, currentScale+0.25);
+    showGesture('☝️ Kattalashtirish');
+  } else if(g==='two'){
+    currentScale=Math.max(0.3, currentScale-0.25);
+    showGesture('✌️ Kichraytirish');
+  } else if(g==='five'){
+    ci=(ci+1)%COLORS.length;
+    buildMesh();
+    showGesture('🤚 Rang almashdi!');
+  } else if(g==='fist'){
+    si=(si+1)%SHAPES.length;
+    buildMesh();
+    showGesture('👊 Shakl almashdi: '+SHAPES[si]);
+  }
+}
+
+let gestureTimer=null;
+function showGesture(txt){
+  const el=document.getElementById('gesture');
+  el.textContent=txt;
+  el.style.opacity='1';
+  clearTimeout(gestureTimer);
+  gestureTimer=setTimeout(()=>{ el.style.opacity='0'; },1500);
+}
+
+// ── GYRO ───────────────────────────────────────
+const _ex=new THREE.Euler();
+function onGyro(e){
+  if(e.alpha==null) return;
+  hasGyro=true;
   _ex.set(
     THREE.MathUtils.degToRad(e.beta),
     THREE.MathUtils.degToRad(e.alpha),
@@ -101,185 +210,104 @@ function onGyro(e) {
     'YXZ'
   );
   gyroQ.setFromEuler(_ex);
-  // Portret rejim tuzatmasi
-  const fix = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), -Math.PI/2);
+  const fix=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);
   gyroQ.multiply(fix);
 }
 
-// ── THREE.JS ───────────────────────────────────
-function setupThree() {
-  const canvas = document.getElementById('canvas');
-  scene   = new THREE.Scene();
-  camera  = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 100);
-  renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-  renderer.setSize(innerWidth, innerHeight);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.setClearColor(0x000000, 0); // shaffof fon — video ko'rinadi
+// ── THREE SETUP ────────────────────────────────
+function setupThree(){
+  const canvas=document.getElementById('canvas3d');
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,100);
+  renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setClearColor(0,0);
 
-  // Yorug'lik
-  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.4);
-  sun.position.set(5, 10, 7);
-  scene.add(sun);
-  const rim = new THREE.PointLight(0x4fc3f7, 1.2, 20);
-  rim.position.set(-4, 3, -3);
-  scene.add(rim);
+  scene.add(new THREE.AmbientLight(0xffffff,.7));
+  const d=new THREE.DirectionalLight(0xffffff,1.4); d.position.set(5,10,7); scene.add(d);
+  const p=new THREE.PointLight(0x4fc3f7,1,16); p.position.set(-4,3,-3); scene.add(p);
 
   buildMesh();
 
-  // Touch drag + pinch zoom
-  canvas.style.pointerEvents = 'all';
-  document.addEventListener('touchstart', e => {
-    if (e.touches.length === 1) {
-      isDragging=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+  // Pinch zoom
+  let lastPinch=null;
+  document.addEventListener('touchstart',e=>{
+    if(e.touches.length===2) lastPinch=pinchDist(e);
+    else{ isDragging=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; }
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(e.touches.length===2 && lastPinch){
+      const d=pinchDist(e);
+      currentScale=Math.max(.3,Math.min(3.5,currentScale+(d-lastPinch)*.006));
+      lastPinch=d; return;
     }
-    if (e.touches.length === 2) {
-      isDragging=false;
-      lastPinchDist = getPinchDist(e);
-    }
-  }, {passive:true});
-  document.addEventListener('touchmove', e => {
-    // Pinch zoom — 2 barmoq
-    if (e.touches.length === 2) {
-      const d = getPinchDist(e);
-      if (lastPinchDist) {
-        const delta = (d - lastPinchDist) * 0.008;
-        currentScale = Math.max(0.3, Math.min(4.0, currentScale + delta));
-      }
-      lastPinchDist = d;
-      return;
-    }
-    lastPinchDist = null;
-    // 1 barmoq — aylantirish (gyro yo'q bo'lsa)
-    if (!isDragging || hasGyro) return;
-    manualYaw   += (e.touches[0].clientX - lastX) * 0.005;
-    manualPitch += (e.touches[0].clientY - lastY) * 0.005;
-    manualPitch  = Math.max(-1.2, Math.min(1.2, manualPitch));
-    lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
-  }, {passive:true});
-  document.addEventListener('touchend', e => {
-    if (e.touches.length < 2) lastPinchDist = null;
-    if (e.touches.length === 0) isDragging = false;
+    lastPinch=null;
+    if(!isDragging||hasGyro) return;
+    manualYaw  +=(e.touches[0].clientX-lastX)*.005;
+    manualPitch+=(e.touches[0].clientY-lastY)*.005;
+    manualPitch=Math.max(-1.2,Math.min(1.2,manualPitch));
+    lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+  },{passive:true});
+  document.addEventListener('touchend',e=>{ if(e.touches.length<2)lastPinch=null; if(!e.touches.length)isDragging=false; });
+  document.addEventListener('wheel',e=>{ currentScale=Math.max(.3,Math.min(3.5,currentScale-e.deltaY*.001)); },{passive:true});
+  document.addEventListener('mousedown',e=>{isDragging=true;lastX=e.clientX;lastY=e.clientY;});
+  document.addEventListener('mousemove',e=>{
+    if(!isDragging) return;
+    manualYaw  +=(e.clientX-lastX)*.005;
+    manualPitch+=(e.clientY-lastY)*.005;
+    lastX=e.clientX;lastY=e.clientY;
   });
+  document.addEventListener('mouseup',()=>isDragging=false);
 
-  // Mouse wheel zoom (desktop)
-  document.addEventListener('wheel', e => {
-    currentScale = Math.max(0.3, Math.min(4.0, currentScale - e.deltaY * 0.001));
-  }, {passive:true});
-  // Mouse drag (desktop)
-  document.addEventListener('mousedown',  e => { isDragging=true; lastX=e.clientX; lastY=e.clientY; });
-  document.addEventListener('mousemove',  e => {
-    if (!isDragging) return;
-    manualYaw   += (e.clientX - lastX) * 0.005;
-    manualPitch += (e.clientY - lastY) * 0.005;
-    manualPitch  = Math.max(-1.2, Math.min(1.2, manualPitch));
-    lastX=e.clientX; lastY=e.clientY;
-  });
-  document.addEventListener('mouseup', () => isDragging = false);
-
-  // DeviceMotion — akselerometr bilan zoom
-  function bindMotion() {
-    window.addEventListener('devicemotion', e => {
-      if (e.accelerationIncludingGravity) {
-        accelZ = e.accelerationIncludingGravity.z || 0;
-      }
-    }, {passive:true});
-  }
-  if (typeof DeviceMotionEvent !== 'undefined') {
-    if (typeof DeviceMotionEvent.requestPermission === 'function') {
-      DeviceMotionEvent.requestPermission()
-        .then(r => { if(r==='granted') bindMotion(); })
-        .catch(() => bindMotion());
-    } else {
-      bindMotion();
-    }
-  }
-
-  window.addEventListener('resize', () => {
-    camera.aspect = innerWidth / innerHeight;
+  window.addEventListener('resize',()=>{
+    camera.aspect=innerWidth/innerHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
+    renderer.setSize(innerWidth,innerHeight);
+    handCanvas.width=innerWidth; handCanvas.height=innerHeight;
   });
-
-  setInfo('<span class="dot"></span>Live · Aylanting!');
 }
 
-function buildMesh() {
-  if (mesh) scene.remove(mesh);
-  const group = new THREE.Group();
+function buildMesh(){
+  if(mesh) scene.remove(mesh);
+  const g=new THREE.Group();
+  const col=COLORS[ci];
+  const mat=new THREE.MeshPhongMaterial({color:col,shininess:140,transparent:true,opacity:.92,side:THREE.DoubleSide});
+  const wm=new THREE.MeshBasicMaterial({wireframe:true,color:0xffffff,transparent:true,opacity:.14});
+  const gm=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.11,side:THREE.BackSide});
+  let geo,geo2;
+  const sh=SHAPES[si];
+  if     (sh==='Kub')     {geo=new THREE.BoxGeometry(1.2,1.2,1.2);        geo2=new THREE.BoxGeometry(1.44,1.44,1.44);}
+  else if(sh==='Sfera')   {geo=new THREE.SphereGeometry(.75,32,32);        geo2=new THREE.SphereGeometry(.92,32,32);}
+  else if(sh==='Oktaedr') {geo=new THREE.OctahedronGeometry(.85);           geo2=new THREE.OctahedronGeometry(1.02);}
+  else if(sh==='Torus')   {geo=new THREE.TorusGeometry(.7,.28,20,64);       geo2=new THREE.TorusGeometry(.7,.38,20,64);}
+  else if(sh==='Konus')   {geo=new THREE.ConeGeometry(.7,1.3,8);            geo2=new THREE.ConeGeometry(.86,1.5,8);}
+  else                    {geo=new THREE.CylinderGeometry(.6,.6,1.2,16);    geo2=new THREE.CylinderGeometry(.75,.75,1.4,16);}
+  g.add(new THREE.Mesh(geo,mat));
+  g.add(new THREE.Mesh(geo.clone(),wm));
+  g.add(new THREE.Mesh(geo2,gm));
+  g.position.set(0,0,-3.5);
+  mesh=g; scene.add(mesh);
+}
 
-  const col = COLORS[ci];
-  const mat = new THREE.MeshPhongMaterial({
-    color: col, shininess: 140,
-    transparent: true, opacity: 0.93,
-    side: THREE.DoubleSide
-  });
-  const wireMat = new THREE.MeshBasicMaterial({
-    color: 0xffffff, wireframe: true,
-    transparent: true, opacity: 0.15
-  });
-  const glowMat = new THREE.MeshBasicMaterial({
-    color: col, transparent: true,
-    opacity: 0.1, side: THREE.BackSide
-  });
-
-  let g, gs;
-  const sh = SHAPES[si];
-  if      (sh==='Kub')     { g=new THREE.BoxGeometry(1.2,1.2,1.2);       gs=new THREE.BoxGeometry(1.42,1.42,1.42); }
-  else if (sh==='Sfera')   { g=new THREE.SphereGeometry(.75,32,32);       gs=new THREE.SphereGeometry(.92,32,32); }
-  else if (sh==='Oktaedr') { g=new THREE.OctahedronGeometry(.85);         gs=new THREE.OctahedronGeometry(1.0); }
-  else if (sh==='Torus')   { g=new THREE.TorusGeometry(.7,.28,20,64);     gs=new THREE.TorusGeometry(.7,.38,20,64); }
-  else if (sh==='Konus')   { g=new THREE.ConeGeometry(.7,1.3,8);          gs=new THREE.ConeGeometry(.86,1.5,8); }
-  else                     { g=new THREE.CylinderGeometry(.6,.6,1.2,16);  gs=new THREE.CylinderGeometry(.75,.75,1.38,16); }
-
-  group.add(new THREE.Mesh(g,   mat));
-  group.add(new THREE.Mesh(g.clone(), wireMat));
-  group.add(new THREE.Mesh(gs,  glowMat));
-
-  group.position.set(0, 0, -3.5);
-  mesh = group;
-  scene.add(mesh);
+function pinchDist(e){
+  const dx=e.touches[0].clientX-e.touches[1].clientX;
+  const dy=e.touches[0].clientY-e.touches[1].clientY;
+  return Math.sqrt(dx*dx+dy*dy);
 }
 
 // ── RENDER LOOP ────────────────────────────────
-let t = 0;
-function renderLoop() {
+function renderLoop(){
   requestAnimationFrame(renderLoop);
-  t += 0.016;
-
-  // Akselerometr zoom — silliq
-  smoothAccel += (accelZ - smoothAccel) * 0.05;
-  currentScale = Math.max(0.3, Math.min(4.0, currentScale + smoothAccel * 0.0015));
-
-  // Scale mesh ga qo'llaymiz
-  const s = currentScale;
-  mesh.scale.set(s, s, s);
-
-  // Model sekin o'z o'qi atrofida aylanadi
-  mesh.rotation.y += 0.008;
-
-  // Kamera orientatsiyasi
-  if (hasGyro) {
-    camera.quaternion.copy(gyroQ);
-  } else {
-    camera.rotation.order = 'YXZ';
-    camera.rotation.y = manualYaw;
-    camera.rotation.x = manualPitch;
-  }
-  camera.position.set(0, 0, 0);
-
-  renderer.render(scene, camera);
+  mesh.rotation.y+=.007;
+  mesh.scale.setScalar(currentScale);
+  if(hasGyro){ camera.quaternion.copy(gyroQ); }
+  else{ camera.rotation.order='YXZ'; camera.rotation.y=manualYaw; camera.rotation.x=manualPitch; }
+  camera.position.set(0,0,0);
+  renderer.render(scene,camera);
 }
 
-function getPinchDist(e) {
-  const dx = e.touches[0].clientX - e.touches[1].clientX;
-  const dy = e.touches[0].clientY - e.touches[1].clientY;
-  return Math.sqrt(dx*dx + dy*dy);
-}
-function nextShape()  { si=(si+1)%SHAPES.length; buildMesh(); }
-function prevShape()  { si=(si-1+SHAPES.length)%SHAPES.length; buildMesh(); }
-function changeColor(){ ci=(ci+1)%COLORS.length; buildMesh(); }
-function setInfo(h)   { document.getElementById('info').innerHTML = h; }
+function setInfo(h){ document.getElementById('info').innerHTML=h; }
 </script>
 </body>
 </html>
