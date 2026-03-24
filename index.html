@@ -3,260 +3,248 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>AR Hand Gesture</title>
+<title>AR 3D</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:#000;overflow:hidden;font-family:Arial,sans-serif}
-  #video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+  #video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;transform:scaleX(-1)}
   #canvas3d{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
-  #canvasHand{position:fixed;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
-  #info{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:7px 18px;border-radius:20px;font-size:13px;white-space:nowrap;z-index:10}
-  #gesture{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:rgba(79,195,247,.25);border:1px solid #4fc3f7;color:#fff;padding:6px 16px;border-radius:16px;font-size:15px;z-index:10;transition:.3s;opacity:0}
-  #legend{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:10px 18px;border-radius:16px;font-size:12px;z-index:10;line-height:1.9;text-align:center}
-  #start{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:100;display:flex;align-items:center;justify-content:center}
-  #startBox{background:#111827;border:2px solid #4fc3f7;border-radius:24px;padding:32px 24px;text-align:center;color:#fff;max-width:310px}
-  #startBox h2{font-size:20px;margin-bottom:10px}
-  #startBox p{color:#9ca3af;font-size:13px;line-height:1.7;margin-bottom:22px}
-  #startBox button{width:100%;padding:13px;background:#4fc3f7;border:none;border-radius:14px;font-size:15px;font-weight:bold;color:#000;cursor:pointer}
+  #canvasHand{position:fixed;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;transform:scaleX(-1)}
+  #info{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.65);color:#fff;padding:7px 18px;border-radius:20px;font-size:13px;white-space:nowrap;z-index:10}
+  #gesture{position:fixed;top:62px;left:50%;transform:translateX(-50%);background:rgba(79,195,247,.3);border:1.5px solid #4fc3f7;color:#fff;padding:6px 18px;border-radius:16px;font-size:16px;z-index:10;opacity:0;transition:opacity .3s;white-space:nowrap}
+  #legend{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:10px 20px;border-radius:16px;font-size:12px;z-index:10;line-height:2;text-align:center}
+  #start{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:100;display:flex;align-items:center;justify-content:center}
+  #box{background:#111827;border:2px solid #4fc3f7;border-radius:24px;padding:32px 24px;text-align:center;color:#fff;max-width:300px}
+  #box h2{font-size:21px;margin-bottom:10px}
+  #box p{color:#9ca3af;font-size:13px;line-height:1.7;margin-bottom:22px}
+  #box button{width:100%;padding:13px;background:#4fc3f7;border:none;border-radius:14px;font-size:15px;font-weight:bold;color:#000;cursor:pointer}
   .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4CAF50;animation:bl 1s infinite;margin-right:5px;vertical-align:middle}
   @keyframes bl{0%,100%{opacity:1}50%{opacity:.2}}
 </style>
 </head>
 <body>
+
 <video id="video" autoplay playsinline muted></video>
 <canvas id="canvas3d"></canvas>
 <canvas id="canvasHand"></canvas>
 <div id="info">⏳ Yuklanmoqda…</div>
-<div id="gesture">👋</div>
+<div id="gesture"></div>
 <div id="legend">
-  ☝️ 1 barmoq → Kattalashtir<br>
-  ✌️ 2 barmoq → Kichraytir<br>
-  🤚 5 barmoq → Rang almashtir<br>
-  👊 Musht → Shakl almashtir
+  ☝️ 1 barmoq → Kattalashtir &nbsp;|&nbsp; ✌️ 2 barmoq → Kichraytir<br>
+  🤚 5 barmoq → Rang &nbsp;|&nbsp; 👊 Musht → Shakl
 </div>
 
 <div id="start">
-  <div id="startBox">
-    <h2>🖐 AR Hand Gesture</h2>
-    <p>Kamera orqali qo'lingizni taniydi.<br>Barmoqlar bilan 3D modelni boshqaring!</p>
+  <div id="box">
+    <h2>🖐 AR Gesture</h2>
+    <p>Orqa kamera yoqiladi.<br>Qo'l gestlari bilan 3D modelni boshqaring!<br><br><b>Kamera ruxsatini bering.</b></p>
     <button onclick="startApp()">▶ Boshlash</button>
   </div>
 </div>
 
+<!-- Three.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<!-- MediaPipe -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1620248257/drawing_utils.js"></script>
+
 <script>
-// ── CONFIG ─────────────────────────────────────
-const COLORS = [0x4fc3f7,0xff6b6b,0x69f0ae,0xffeb3b,0xce93d8,0xff8a65];
-const SHAPES  = ['Kub','Sfera','Oktaedr','Torus','Konus','Silindr'];
-let ci=0, si=0;
-let currentScale=1.0;
-
-// Gyro
-let gyroQ=new THREE.Quaternion(), hasGyro=false;
-let manualYaw=0, manualPitch=0, isDragging=false, lastX=0, lastY=0;
-
-// Gesture cooldown
-let lastGestureTime=0;
-const COOLDOWN=1200; // ms
-
-// ── THREE ──────────────────────────────────────
+const COLORS=[0x4fc3f7,0xff6b6b,0x69f0ae,0xffeb3b,0xce93d8,0xff8a65];
+const SHAPES=['Kub','Sfera','Oktaedr','Torus','Konus','Silindr'];
+let ci=0,si=0,currentScale=1.0;
 let renderer,scene,camera,mesh;
+let gyroQ=new THREE.Quaternion(),hasGyro=false;
+let manualYaw=0,manualPitch=0,isDrag=false,lx=0,ly=0;
+let lastGesture=0;
+const COOL=1500;
+let handsModel=null;
+let animId=null;
 
-// ── MEDIAPIPE ──────────────────────────────────
-let hands, mpCamera;
-let landmarksData=null;
-
+// ── START ──────────────────────────────────────
 async function startApp(){
   document.getElementById('start').style.display='none';
-  setInfo('⏳ Model yuklanmoqda…');
+  setInfo('⏳ Kamera ochilmoqda…');
 
+  // 1. Orqa kamerani och
   const video=document.getElementById('video');
+  let stream=null;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{exact:'environment'},width:640,height:480},
+      audio:false
+    });
+  }catch(e){
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+    }catch(e2){
+      try{
+        stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+      }catch(e3){
+        setInfo('⚠️ Kamera ruxsati berilmadi!'); return;
+      }
+    }
+  }
+  video.srcObject=stream;
+  await new Promise(r=>video.onloadedmetadata=r);
+  video.play();
 
-  // Gyro
+  setInfo('⏳ MediaPipe yuklanmoqda…');
+
+  // 2. Gyro
   if(typeof DeviceOrientationEvent!=='undefined'){
     if(typeof DeviceOrientationEvent.requestPermission==='function'){
-      try{ await DeviceOrientationEvent.requestPermission(); }catch(_){}
+      try{await DeviceOrientationEvent.requestPermission();}catch(_){}
     }
     window.addEventListener('deviceorientation',onGyro,{passive:true});
+    setTimeout(()=>{if(!hasGyro)setInfo('<span class="dot"></span>Tayyor (gyro yo\'q)');},1200);
   }
 
+  // 3. Three.js
   setupThree();
 
-  // MediaPipe Hands — u kamerani o'zi ochadi
-  hands=new Hands({locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-  hands.setOptions({
+  // 4. MediaPipe Hands
+  handsModel=new Hands({
+    locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${f}`
+  });
+  handsModel.setOptions({
     maxNumHands:1,
     modelComplexity:0,
-    minDetectionConfidence:0.7,
+    minDetectionConfidence:0.65,
     minTrackingConfidence:0.5
   });
-  hands.onResults(onHandResults);
-
-  // MediaPipe Camera — kamerani faqat shu orqali ochamiz
-  mpCamera=new Camera(video,{
-    onFrame: async()=>{ await hands.send({image:video}); },
-    width:640, height:480
-  });
-  mpCamera.start();
+  handsModel.onResults(onResults);
+  await handsModel.initialize();
 
   setInfo('<span class="dot"></span>Tayyor — qo\'lni ko\'rsating!');
+
+  // 5. Frame loop — video dan mediapipe ga yuboramiz
+  async function sendFrame(){
+    if(video.readyState>=2){
+      await handsModel.send({image:video});
+    }
+    animId=requestAnimationFrame(sendFrame);
+  }
+  sendFrame();
   renderLoop();
 }
 
-// ── HAND RESULTS ───────────────────────────────
-const handCanvas=document.getElementById('canvasHand');
-const hCtx=handCanvas.getContext('2d');
+// ── MEDIAPIPE RESULTS ──────────────────────────
+const hCanvas=document.getElementById('canvasHand');
+const hCtx=hCanvas.getContext('2d');
 
-function onHandResults(results){
-  // Canvas o'lchamini moslashtir
-  handCanvas.width=innerWidth;
-  handCanvas.height=innerHeight;
-  hCtx.clearRect(0,0,innerWidth,innerHeight);
+function onResults(results){
+  hCanvas.width=window.innerWidth;
+  hCanvas.height=window.innerHeight;
+  hCtx.clearRect(0,0,hCanvas.width,hCanvas.height);
 
-  if(!results.multiHandLandmarks || results.multiHandLandmarks.length===0){
-    landmarksData=null;
-    return;
-  }
+  if(!results.multiHandLandmarks||!results.multiHandLandmarks.length) return;
 
   const lm=results.multiHandLandmarks[0];
-  landmarksData=lm;
 
-  // Qo'l skeletini chiz
-  drawConnectors(hCtx, lm, HAND_CONNECTIONS, {color:'rgba(79,195,247,0.6)',lineWidth:2});
-  drawLandmarks(hCtx, lm, {color:'#4fc3f7',fillColor:'rgba(255,255,255,0.8)',lineWidth:1,radius:3});
+  // Skelet chiz
+  drawConnectors(hCtx,lm,HAND_CONNECTIONS,{color:'rgba(79,195,247,0.7)',lineWidth:2});
+  drawLandmarks(hCtx,lm,{color:'#fff',fillColor:'#4fc3f7',lineWidth:1,radius:4});
 
-  // Gesture aniqlash
+  // Gesture
   const now=Date.now();
-  if(now-lastGestureTime > COOLDOWN){
-    const g=detectGesture(lm);
-    if(g) applyGesture(g);
+  if(now-lastGesture>COOL){
+    const g=getGesture(lm);
+    if(g){lastGesture=now;doGesture(g);}
   }
 }
 
-// ── GESTURE DETECTION ──────────────────────────
-function isFingerUp(lm, tip, pip){
-  return lm[tip].y < lm[pip].y;
-}
+function up(lm,tip,pip){return lm[tip].y<lm[pip].y;}
 
-function detectGesture(lm){
-  const thumb  = lm[4].x < lm[3].x; // thumb extended (mirrored)
-  const index  = isFingerUp(lm,8,6);
-  const middle = isFingerUp(lm,12,10);
-  const ring   = isFingerUp(lm,16,14);
-  const pinky  = isFingerUp(lm,20,18);
-
-  const count=[index,middle,ring,pinky].filter(Boolean).length;
-
-  if(count===0 && !thumb) return 'fist';      // 👊 Musht
-  if(count===1 && index && !middle) return 'one';   // ☝️
-  if(count===2 && index && middle && !ring) return 'two'; // ✌️
-  if(count===4 && thumb) return 'five';       // 🤚 5 barmoq
+function getGesture(lm){
+  const i=up(lm,8,6),m=up(lm,12,10),r=up(lm,16,14),p=up(lm,20,18);
+  const n=[i,m,r,p].filter(Boolean).length;
+  if(n===0) return 'fist';
+  if(n===1&&i) return 'one';
+  if(n===2&&i&&m) return 'two';
+  if(n===4) return 'five';
   return null;
 }
 
-function applyGesture(g){
-  lastGestureTime=Date.now();
-  if(g==='one'){
-    currentScale=Math.min(3.5, currentScale+0.25);
-    showGesture('☝️ Kattalashtirish');
-  } else if(g==='two'){
-    currentScale=Math.max(0.3, currentScale-0.25);
-    showGesture('✌️ Kichraytirish');
-  } else if(g==='five'){
-    ci=(ci+1)%COLORS.length;
-    buildMesh();
-    showGesture('🤚 Rang almashdi!');
-  } else if(g==='fist'){
-    si=(si+1)%SHAPES.length;
-    buildMesh();
-    showGesture('👊 Shakl almashdi: '+SHAPES[si]);
-  }
+function doGesture(g){
+  if(g==='one'){currentScale=Math.min(3,currentScale+0.3);flash('☝️ Kattalashtirish');}
+  else if(g==='two'){currentScale=Math.max(0.3,currentScale-0.3);flash('✌️ Kichraytirish');}
+  else if(g==='five'){ci=(ci+1)%COLORS.length;buildMesh();flash('🤚 Rang almashdi!');}
+  else if(g==='fist'){si=(si+1)%SHAPES.length;buildMesh();flash('👊 '+SHAPES[si]);}
 }
 
-let gestureTimer=null;
-function showGesture(txt){
+let ft=null;
+function flash(txt){
   const el=document.getElementById('gesture');
-  el.textContent=txt;
-  el.style.opacity='1';
-  clearTimeout(gestureTimer);
-  gestureTimer=setTimeout(()=>{ el.style.opacity='0'; },1500);
+  el.textContent=txt;el.style.opacity='1';
+  clearTimeout(ft);ft=setTimeout(()=>el.style.opacity='0',1600);
 }
 
 // ── GYRO ───────────────────────────────────────
-const _ex=new THREE.Euler();
+const _eu=new THREE.Euler();
 function onGyro(e){
-  if(e.alpha==null) return;
+  if(e.alpha==null)return;
   hasGyro=true;
-  _ex.set(
+  _eu.set(
     THREE.MathUtils.degToRad(e.beta),
     THREE.MathUtils.degToRad(e.alpha),
     THREE.MathUtils.degToRad(-e.gamma),
     'YXZ'
   );
-  gyroQ.setFromEuler(_ex);
-  const fix=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);
-  gyroQ.multiply(fix);
+  gyroQ.setFromEuler(_eu);
+  gyroQ.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2));
 }
 
-// ── THREE SETUP ────────────────────────────────
+// ── THREE ──────────────────────────────────────
 function setupThree(){
-  const canvas=document.getElementById('canvas3d');
+  const c=document.getElementById('canvas3d');
   scene=new THREE.Scene();
   camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,100);
-  renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});
+  renderer=new THREE.WebGLRenderer({canvas:c,alpha:true,antialias:true});
   renderer.setSize(innerWidth,innerHeight);
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.setClearColor(0,0);
 
   scene.add(new THREE.AmbientLight(0xffffff,.7));
-  const d=new THREE.DirectionalLight(0xffffff,1.4); d.position.set(5,10,7); scene.add(d);
-  const p=new THREE.PointLight(0x4fc3f7,1,16); p.position.set(-4,3,-3); scene.add(p);
+  const d=new THREE.DirectionalLight(0xffffff,1.3);d.position.set(5,10,7);scene.add(d);
+  scene.add(Object.assign(new THREE.PointLight(0x4fc3f7,1,16),{position:{x:-4,y:3,z:-3}}));
 
   buildMesh();
 
   // Pinch zoom
-  let lastPinch=null;
+  let lp=null;
   document.addEventListener('touchstart',e=>{
-    if(e.touches.length===2) lastPinch=pinchDist(e);
-    else{ isDragging=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; }
+    if(e.touches.length===2)lp=pd(e);
+    else{isDrag=true;lx=e.touches[0].clientX;ly=e.touches[0].clientY;}
   },{passive:true});
   document.addEventListener('touchmove',e=>{
-    if(e.touches.length===2 && lastPinch){
-      const d=pinchDist(e);
-      currentScale=Math.max(.3,Math.min(3.5,currentScale+(d-lastPinch)*.006));
-      lastPinch=d; return;
-    }
-    lastPinch=null;
-    if(!isDragging||hasGyro) return;
-    manualYaw  +=(e.touches[0].clientX-lastX)*.005;
-    manualPitch+=(e.touches[0].clientY-lastY)*.005;
+    if(e.touches.length===2&&lp){const d=pd(e);currentScale=Math.max(.3,Math.min(3,currentScale+(d-lp)*.005));lp=d;return;}
+    lp=null;
+    if(!isDrag||hasGyro)return;
+    manualYaw+=(e.touches[0].clientX-lx)*.005;
+    manualPitch+=(e.touches[0].clientY-ly)*.005;
     manualPitch=Math.max(-1.2,Math.min(1.2,manualPitch));
-    lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+    lx=e.touches[0].clientX;ly=e.touches[0].clientY;
   },{passive:true});
-  document.addEventListener('touchend',e=>{ if(e.touches.length<2)lastPinch=null; if(!e.touches.length)isDragging=false; });
-  document.addEventListener('wheel',e=>{ currentScale=Math.max(.3,Math.min(3.5,currentScale-e.deltaY*.001)); },{passive:true});
-  document.addEventListener('mousedown',e=>{isDragging=true;lastX=e.clientX;lastY=e.clientY;});
+  document.addEventListener('touchend',e=>{if(e.touches.length<2)lp=null;if(!e.touches.length)isDrag=false;});
+  document.addEventListener('wheel',e=>{currentScale=Math.max(.3,Math.min(3,currentScale-e.deltaY*.001));},{passive:true});
+  document.addEventListener('mousedown',e=>{isDrag=true;lx=e.clientX;ly=e.clientY;});
   document.addEventListener('mousemove',e=>{
-    if(!isDragging) return;
-    manualYaw  +=(e.clientX-lastX)*.005;
-    manualPitch+=(e.clientY-lastY)*.005;
-    lastX=e.clientX;lastY=e.clientY;
+    if(!isDrag)return;
+    manualYaw+=(e.clientX-lx)*.005;manualPitch+=(e.clientY-ly)*.005;
+    manualPitch=Math.max(-1.2,Math.min(1.2,manualPitch));
+    lx=e.clientX;ly=e.clientY;
   });
-  document.addEventListener('mouseup',()=>isDragging=false);
-
+  document.addEventListener('mouseup',()=>isDrag=false);
   window.addEventListener('resize',()=>{
-    camera.aspect=innerWidth/innerHeight;
-    camera.updateProjectionMatrix();
+    camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
     renderer.setSize(innerWidth,innerHeight);
-    handCanvas.width=innerWidth; handCanvas.height=innerHeight;
   });
 }
 
+function pd(e){const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;return Math.sqrt(dx*dx+dy*dy);}
+
 function buildMesh(){
-  if(mesh) scene.remove(mesh);
+  if(mesh)scene.remove(mesh);
   const g=new THREE.Group();
   const col=COLORS[ci];
   const mat=new THREE.MeshPhongMaterial({color:col,shininess:140,transparent:true,opacity:.92,side:THREE.DoubleSide});
@@ -264,37 +252,30 @@ function buildMesh(){
   const gm=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.11,side:THREE.BackSide});
   let geo,geo2;
   const sh=SHAPES[si];
-  if     (sh==='Kub')     {geo=new THREE.BoxGeometry(1.2,1.2,1.2);        geo2=new THREE.BoxGeometry(1.44,1.44,1.44);}
-  else if(sh==='Sfera')   {geo=new THREE.SphereGeometry(.75,32,32);        geo2=new THREE.SphereGeometry(.92,32,32);}
-  else if(sh==='Oktaedr') {geo=new THREE.OctahedronGeometry(.85);           geo2=new THREE.OctahedronGeometry(1.02);}
-  else if(sh==='Torus')   {geo=new THREE.TorusGeometry(.7,.28,20,64);       geo2=new THREE.TorusGeometry(.7,.38,20,64);}
-  else if(sh==='Konus')   {geo=new THREE.ConeGeometry(.7,1.3,8);            geo2=new THREE.ConeGeometry(.86,1.5,8);}
-  else                    {geo=new THREE.CylinderGeometry(.6,.6,1.2,16);    geo2=new THREE.CylinderGeometry(.75,.75,1.4,16);}
+  if(sh==='Kub'){geo=new THREE.BoxGeometry(1.2,1.2,1.2);geo2=new THREE.BoxGeometry(1.44,1.44,1.44);}
+  else if(sh==='Sfera'){geo=new THREE.SphereGeometry(.75,32,32);geo2=new THREE.SphereGeometry(.92,32,32);}
+  else if(sh==='Oktaedr'){geo=new THREE.OctahedronGeometry(.85);geo2=new THREE.OctahedronGeometry(1.02);}
+  else if(sh==='Torus'){geo=new THREE.TorusGeometry(.7,.28,20,64);geo2=new THREE.TorusGeometry(.7,.38,20,64);}
+  else if(sh==='Konus'){geo=new THREE.ConeGeometry(.7,1.3,8);geo2=new THREE.ConeGeometry(.86,1.5,8);}
+  else{geo=new THREE.CylinderGeometry(.6,.6,1.2,16);geo2=new THREE.CylinderGeometry(.75,.75,1.4,16);}
   g.add(new THREE.Mesh(geo,mat));
   g.add(new THREE.Mesh(geo.clone(),wm));
   g.add(new THREE.Mesh(geo2,gm));
   g.position.set(0,0,-3.5);
-  mesh=g; scene.add(mesh);
+  mesh=g;scene.add(mesh);
 }
 
-function pinchDist(e){
-  const dx=e.touches[0].clientX-e.touches[1].clientX;
-  const dy=e.touches[0].clientY-e.touches[1].clientY;
-  return Math.sqrt(dx*dx+dy*dy);
-}
-
-// ── RENDER LOOP ────────────────────────────────
 function renderLoop(){
   requestAnimationFrame(renderLoop);
   mesh.rotation.y+=.007;
   mesh.scale.setScalar(currentScale);
-  if(hasGyro){ camera.quaternion.copy(gyroQ); }
-  else{ camera.rotation.order='YXZ'; camera.rotation.y=manualYaw; camera.rotation.x=manualPitch; }
+  if(hasGyro)camera.quaternion.copy(gyroQ);
+  else{camera.rotation.order='YXZ';camera.rotation.y=manualYaw;camera.rotation.x=manualPitch;}
   camera.position.set(0,0,0);
   renderer.render(scene,camera);
 }
 
-function setInfo(h){ document.getElementById('info').innerHTML=h; }
+function setInfo(h){document.getElementById('info').innerHTML=h;}
 </script>
 </body>
 </html>
