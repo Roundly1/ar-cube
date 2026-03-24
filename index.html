@@ -3,319 +3,731 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>AR 3D</title>
+<title>AR Browser Gesture</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
   *{margin:0;padding:0;box-sizing:border-box}
-  body{background:#000;overflow:hidden;font-family:Arial,sans-serif}
+  body{background:#000;overflow:hidden;font-family:'Space Mono',monospace}
   #video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
   #canvas3d{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
   #canvasHand{position:fixed;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
-  #info{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.65);color:#fff;padding:7px 18px;border-radius:20px;font-size:13px;white-space:nowrap;z-index:10}
-  #gesture{position:fixed;top:62px;left:50%;transform:translateX(-50%);background:rgba(79,195,247,.3);border:1.5px solid #4fc3f7;color:#fff;padding:6px 18px;border-radius:16px;font-size:16px;z-index:10;opacity:0;transition:opacity .3s;white-space:nowrap}
-  #legend{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:10px 20px;border-radius:16px;font-size:12px;z-index:10;line-height:2;text-align:center}
-  #start{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:100;display:flex;align-items:center;justify-content:center}
-  #box{background:#111827;border:2px solid #4fc3f7;border-radius:24px;padding:32px 24px;text-align:center;color:#fff;max-width:300px}
-  #box h2{font-size:21px;margin-bottom:10px}
-  #box p{color:#9ca3af;font-size:13px;line-height:1.7;margin-bottom:22px}
-  #box button{width:100%;padding:13px;background:#4fc3f7;border:none;border-radius:14px;font-size:15px;font-weight:bold;color:#000;cursor:pointer}
+
+  /* HUD top */
+  #hud{position:fixed;top:0;left:0;right:0;z-index:10;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,rgba(0,0,0,.7) 0%,transparent 100%)}
+  #status{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.55);border:1px solid rgba(79,195,247,.3);padding:6px 14px;border-radius:20px;font-size:11px;color:#fff}
+  #scale-badge{background:rgba(79,195,247,.15);border:1px solid rgba(79,195,247,.4);color:#4fc3f7;padding:6px 14px;border-radius:20px;font-size:11px;letter-spacing:.5px}
+
+  /* Gesture flash */
+  #gesture{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);border:1.5px solid #4fc3f7;color:#4fc3f7;padding:8px 22px;border-radius:12px;font-size:13px;z-index:10;opacity:0;transition:opacity .3s;white-space:nowrap;letter-spacing:.5px}
+
+  /* Legend */
+  #legend{position:fixed;bottom:0;left:0;right:0;z-index:10;padding:14px 16px;background:linear-gradient(0deg,rgba(0,0,0,.75) 0%,transparent 100%);display:flex;justify-content:center;gap:20px;flex-wrap:wrap}
+  .leg{display:flex;align-items:center;gap:6px;font-size:10px;color:rgba(255,255,255,.75);letter-spacing:.3px}
+  .leg-icon{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;background:rgba(79,195,247,.15)}
+
+  /* Start screen */
+  #start{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:100;display:flex;align-items:center;justify-content:center}
+  #box{background:#0a0f1a;border:1px solid rgba(79,195,247,.4);border-radius:20px;padding:36px 28px;text-align:center;color:#fff;max-width:320px;width:90%}
+  #box h2{font-size:20px;margin-bottom:8px;letter-spacing:1px;color:#4fc3f7}
+  #box p{color:#6b7a8d;font-size:12px;line-height:1.8;margin-bottom:28px}
+  #box button{width:100%;padding:14px;background:#4fc3f7;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#000;cursor:pointer;letter-spacing:.5px;font-family:'Space Mono',monospace;transition:opacity .2s}
+  #box button:hover{opacity:.85}
+
   .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4CAF50;animation:bl 1s infinite;margin-right:5px;vertical-align:middle}
   @keyframes bl{0%,100%{opacity:1}50%{opacity:.2}}
+
+  /* Browser window styles (drawn on canvas via Three.js plane) */
 </style>
 </head>
 <body>
 <video id="video" autoplay playsinline muted></video>
 <canvas id="canvas3d"></canvas>
 <canvas id="canvasHand"></canvas>
-<div id="info">⏳ Yuklanmoqda…</div>
+
+<div id="hud">
+  <div id="status">⏳ Yuklanmoqda…</div>
+  <div id="scale-badge">SCALE 1.00x</div>
+</div>
 <div id="gesture"></div>
 <div id="legend">
-  ☝️ 1 barmoq → Kattalashtir &nbsp;|&nbsp; ✌️ 2 barmoq → Kichraytir<br>
-  🤚 5 barmoq → Rang &nbsp;|&nbsp; 👊 Musht → Shakl
+  <div class="leg"><div class="leg-icon">🤏</div>Bosh+Jimjiloq → Kattalashtir</div>
+  <div class="leg"><div class="leg-icon">👍</div>Bosh barmoq → Kichraytir</div>
+  <div class="leg"><div class="leg-icon">🤚</div>5 barmoq → URL almashtir</div>
+  <div class="leg"><div class="leg-icon">👊</div>Musht → Rang</div>
 </div>
 <div id="start">
   <div id="box">
-    <h2>🖐 AR Gesture</h2>
-    <p>Orqa kamera yoqiladi.<br>Qo'l gestlari bilan 3D modelni boshqaring!</p>
-    <button onclick="startApp()">▶ Boshlash</button>
+    <h2>AR BROWSER</h2>
+    <p>Orqa kamera + qo'l gestlari bilan<br>3D brauzer oynasini boshqaring.</p>
+    <button onclick="startApp()">▶ BOSHLASH</button>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-const COLORS=[0x4fc3f7,0xff6b6b,0x69f0ae,0xffeb3b,0xce93d8,0xff8a65];
-const SHAPES=['Kub','Sfera','Oktaedr','Torus','Konus','Silindr'];
-let ci=0,si=0,currentScale=1.0;
-let renderer,scene,camera,mesh;
-let gyroQ=new THREE.Quaternion(),hasGyro=false;
-let manualYaw=0,manualPitch=0,isDrag=false,lx=0,ly=0;
-let lastGesture=0;
-const COOL=1500;
-let handReady=false;
+// ── CONFIG ─────────────────────────────────────────────────────────────────
+const SITES = [
+  { url:'https://uz.wikipedia.org', label:'Wikipedia UZ' },
+  { url:'https://www.google.com/webhp?igu=1', label:'Google' },
+  { url:'https://openweathermap.org/city/1512473', label:'Toshkent Ob-havo' },
+  { url:'https://time.is/Tashkent', label:'Toshkent Vaqti' },
+  { url:'https://news.bbc.co.uk/sport', label:'BBC Sport' },
+];
+const COLORS = [0x1a73e8, 0xe34c4c, 0x2ecc71, 0xf39c12, 0x9b59b6, 0x00bcd4];
+let ci = 0, siteIdx = 0;
 
+// ── STATE ───────────────────────────────────────────────────────────────────
+let renderer, scene, camera;
+let browserGroup; // the whole browser window group
+let targetScale = 1.0, currentScale = 1.0;
+let targetRotY = 0, currentRotY = 0;
+let targetRotX = 0, currentRotX = 0;
+let autoRotateSpeed = 0.004;
+
+let gyroQ = new THREE.Quaternion(), hasGyro = false;
+let manualYaw = 0, manualPitch = 0.1;
+let isDrag = false, lx = 0, ly = 0;
+
+let handReady = false;
+let lastGesture = 0;
+const COOL = 1800;
+
+let iframe; // HTML iframe for browser content
+
+// ── START ───────────────────────────────────────────────────────────────────
 async function startApp(){
-  document.getElementById('start').style.display='none';
-  setInfo('⏳ Kamera ochilmoqda…');
+  document.getElementById('start').style.display = 'none';
+  setStatus('⏳ Kamera ochilmoqda…');
 
-  // Kamera
-  const video=document.getElementById('video');
-  try{
-    const s=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{exact:'environment'},width:640,height:480},audio:false
+  const video = document.getElementById('video');
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:{exact:'environment'}, width:640, height:480 }, audio:false
     });
-    video.srcObject=s;
-  }catch(e){
-    try{
-      const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
-      video.srcObject=s;
-    }catch(e2){
-      try{
-        const s=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
-        video.srcObject=s;
-      }catch(e3){ setInfo('⚠️ Kamera ruxsati berilmadi!'); return; }
+    video.srcObject = s;
+  } catch(e){
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+      video.srcObject = s;
+    } catch(e2){
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+        video.srcObject = s;
+      } catch(e3){ setStatus('⚠️ Kamera ruxsati berilmadi!'); return; }
     }
   }
-  await new Promise(r=>{video.onloadedmetadata=r;});
+  await new Promise(r=>{ video.onloadedmetadata = r; });
   video.play();
 
   // Gyro
-  if(typeof DeviceOrientationEvent!=='undefined'){
-    if(typeof DeviceOrientationEvent.requestPermission==='function'){
-      try{await DeviceOrientationEvent.requestPermission();}catch(_){}
+  if(typeof DeviceOrientationEvent !== 'undefined'){
+    if(typeof DeviceOrientationEvent.requestPermission === 'function'){
+      try{ await DeviceOrientationEvent.requestPermission(); } catch(_){}
     }
-    window.addEventListener('deviceorientation',onGyro,{passive:true});
+    window.addEventListener('deviceorientation', onGyro, {passive:true});
   }
 
-  // Three.js — darhol boshlaydi (MediaPipe kutilmaydi)
   setupThree();
   renderLoop();
 
-  // MediaPipe — dinamik yuklaymiz
-  setInfo('⏳ Hand tracking yuklanmoqda…');
+  setStatus('⏳ Hand tracking yuklanmoqda…');
   loadMediaPipe(video);
 }
 
-// ── MediaPipe dinamik yuklash ──────────────────
+// ── MEDIAPIPE ──────────────────────────────────────────────────────────────
 function loadMediaPipe(video){
-  // Avval eski scriptlarni o'chiramiz
-  const scripts=[
+  let loaded = 0;
+  const scripts = [
     'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js',
     'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js'
   ];
-
-  let loaded=0;
   scripts.forEach(src=>{
-    const s=document.createElement('script');
-    s.src=src;
-    s.onload=()=>{ loaded++; if(loaded===scripts.length) initHands(video); };
-    s.onerror=()=>{ setInfo('<span class="dot"></span>Tayyor (hand tracking yuklanmadi)'); };
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = ()=>{ loaded++; if(loaded === scripts.length) initHands(video); };
+    s.onerror = ()=>{ setStatus('<span class="dot"></span>Tayyor'); };
     document.head.appendChild(s);
   });
 }
 
 function initHands(video){
   try{
-    const hands=new Hands({
-      locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+    const hands = new Hands({
+      locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
     });
     hands.setOptions({
-      maxNumHands:1,
-      modelComplexity:0,
-      minDetectionConfidence:0.65,
-      minTrackingConfidence:0.5
+      maxNumHands:1, modelComplexity:0,
+      minDetectionConfidence:0.65, minTrackingConfidence:0.55
     });
-    hands.onResults(onResults);
+
+    hands.onResults(results=>{
+      const hCanvas = document.getElementById('canvasHand');
+      hCanvas.width = innerWidth; hCanvas.height = innerHeight;
+      const ctx = hCanvas.getContext('2d');
+      ctx.clearRect(0,0,innerWidth,innerHeight);
+
+      if(!results.multiHandLandmarks || !results.multiHandLandmarks.length) return;
+      const lm = results.multiHandLandmarks[0];
+
+      // Draw skeleton
+      if(typeof drawConnectors !== 'undefined'){
+        drawConnectors(ctx, lm, HAND_CONNECTIONS, {color:'rgba(79,195,247,0.5)',lineWidth:1.5});
+        drawLandmarks(ctx, lm, {color:'rgba(255,255,255,0.8)',fillColor:'rgba(79,195,247,0.6)',lineWidth:1,radius:3});
+      }
+
+      const now = Date.now();
+      if(now - lastGesture > COOL){
+        const g = detectGesture(lm);
+        if(g){ lastGesture = now; doGesture(g); }
+      }
+    });
 
     hands.initialize().then(()=>{
-      handReady=true;
-      setInfo('<span class="dot"></span>Tayyor — qo\'lni ko\'rsating!');
-
-      // Frame loop
-      const hCanvas=document.getElementById('canvasHand');
-      const hCtx=hCanvas.getContext('2d');
-
-      async function sendFrame(){
-        if(video.readyState>=2 && handReady){
-          try{ await hands.send({image:video}); }catch(_){}
+      handReady = true;
+      setStatus('<span class="dot"></span>Tayyor — qo\'lni ko\'rsating!');
+      async function loop(){
+        if(video.readyState >= 2 && handReady){
+          try{ await hands.send({image:video}); } catch(_){}
         }
-        requestAnimationFrame(sendFrame);
+        requestAnimationFrame(loop);
       }
-      sendFrame();
-    }).catch(()=>{
-      setInfo('<span class="dot"></span>Tayyor (hand tracking xato)');
-    });
-
-    // onResults
-    function onResults(results){
-      const hCanvas=document.getElementById('canvasHand');
-      hCanvas.width=innerWidth;
-      hCanvas.height=innerHeight;
-      const hCtx=hCanvas.getContext('2d');
-      hCtx.clearRect(0,0,innerWidth,innerHeight);
-
-      if(!results.multiHandLandmarks||!results.multiHandLandmarks.length) return;
-      const lm=results.multiHandLandmarks[0];
-
-      // Skelet
-      if(typeof drawConnectors!=='undefined'){
-        drawConnectors(hCtx,lm,HAND_CONNECTIONS,{color:'rgba(79,195,247,0.7)',lineWidth:2});
-        drawLandmarks(hCtx,lm,{color:'#fff',fillColor:'#4fc3f7',lineWidth:1,radius:4});
-      }
-
-      // Gesture
-      const now=Date.now();
-      if(now-lastGesture>COOL){
-        const g=getGesture(lm);
-        if(g){lastGesture=now;doGesture(g);}
-      }
-    }
-  }catch(e){
-    setInfo('<span class="dot"></span>Tayyor (hand tracking xato)');
+      loop();
+    }).catch(()=>{ setStatus('<span class="dot"></span>Tayyor'); });
+  } catch(e){
+    setStatus('<span class="dot"></span>Tayyor');
   }
 }
 
-// ── Gesture ────────────────────────────────────
-function up(lm,tip,pip){return lm[tip].y<lm[pip].y;}
-function getGesture(lm){
-  const i=up(lm,8,6),m=up(lm,12,10),r=up(lm,16,14),p=up(lm,20,18);
-  const n=[i,m,r,p].filter(Boolean).length;
-  if(n===0) return 'fist';
-  if(n===1&&i) return 'one';
-  if(n===2&&i&&m) return 'two';
-  if(n===4) return 'five';
-  return null;
-}
-function doGesture(g){
-  if(g==='one'){currentScale=Math.min(3,currentScale+0.3);flash('☝️ Kattalashtirish');}
-  else if(g==='two'){currentScale=Math.max(0.3,currentScale-0.3);flash('✌️ Kichraytirish');}
-  else if(g==='five'){ci=(ci+1)%COLORS.length;buildMesh();flash('🤚 Rang almashdi!');}
-  else if(g==='fist'){si=(si+1)%SHAPES.length;buildMesh();flash('👊 '+SHAPES[si]);}
-}
-let ft=null;
-function flash(txt){
-  const el=document.getElementById('gesture');
-  el.textContent=txt;el.style.opacity='1';
-  clearTimeout(ft);ft=setTimeout(()=>el.style.opacity='0',1600);
+// ── GESTURE DETECTION ───────────────────────────────────────────────────────
+function fingerUp(lm, tip, pip){ return lm[tip].y < lm[pip].y; }
+
+function thumbUp(lm){
+  // Bosh barmoq: tip x vs mcp x (qo'lning tomoniga qarab)
+  const wrist = lm[0], tip = lm[4], ip = lm[3];
+  return Math.abs(tip.x - wrist.x) > Math.abs(ip.x - wrist.x) + 0.04;
 }
 
-// ── Gyro ───────────────────────────────────────
-const _eu=new THREE.Euler();
+function detectGesture(lm){
+  const idx = fingerUp(lm,8,6);
+  const mid = fingerUp(lm,12,10);
+  const rng = fingerUp(lm,16,14);
+  const pnk = fingerUp(lm,20,18);
+  const thu = thumbUp(lm);
+
+  // Pinch: bosh + jimjiloq yaqin (kattalashtir)
+  const pinchDist = Math.hypot(lm[4].x-lm[8].x, lm[4].y-lm[8].y);
+  if(pinchDist < 0.07 && !mid && !rng && !pnk) return 'pinch';
+
+  const upCount = [idx,mid,rng,pnk].filter(Boolean).length;
+
+  // Faqat bosh barmoq ko'tarilgan (kichraytir)
+  if(thu && !idx && !mid && !rng && !pnk) return 'thumb';
+
+  // Musht
+  if(upCount === 0 && !thu) return 'fist';
+
+  // 5 barmoq (hamma)
+  if(upCount === 4) return 'five';
+
+  return null;
+}
+
+function doGesture(g){
+  if(g === 'pinch'){
+    targetScale = Math.min(3.2, targetScale + 0.35);
+    flash('🤏 Kattalashtirish');
+  } else if(g === 'thumb'){
+    targetScale = Math.max(0.25, targetScale - 0.35);
+    flash('👍 Kichraytirish');
+  } else if(g === 'five'){
+    siteIdx = (siteIdx + 1) % SITES.length;
+    updateBrowserURL();
+    flash('🤚 ' + SITES[siteIdx].label);
+  } else if(g === 'fist'){
+    ci = (ci + 1) % COLORS.length;
+    updateBrowserColor();
+    flash('👊 Rang almashdi');
+  }
+}
+
+let ft = null;
+function flash(txt){
+  const el = document.getElementById('gesture');
+  el.textContent = txt; el.style.opacity = '1';
+  clearTimeout(ft); ft = setTimeout(()=>el.style.opacity='0', 1800);
+}
+
+// ── GYRO ────────────────────────────────────────────────────────────────────
+const _eu = new THREE.Euler();
 function onGyro(e){
-  if(e.alpha==null)return;
-  hasGyro=true;
+  if(e.alpha == null) return;
+  hasGyro = true;
   _eu.set(
     THREE.MathUtils.degToRad(e.beta),
     THREE.MathUtils.degToRad(e.alpha),
-    THREE.MathUtils.degToRad(-e.gamma),
-    'YXZ'
+    THREE.MathUtils.degToRad(-e.gamma), 'YXZ'
   );
   gyroQ.setFromEuler(_eu);
   gyroQ.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2));
 }
 
-// ── Three.js ───────────────────────────────────
+// ── THREE.JS SETUP ──────────────────────────────────────────────────────────
 function setupThree(){
-  const c=document.getElementById('canvas3d');
-  scene=new THREE.Scene();
-  camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,100);
-  renderer=new THREE.WebGLRenderer({canvas:c,alpha:true,antialias:true});
-  renderer.setSize(innerWidth,innerHeight);
-  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-  renderer.setClearColor(0,0);
+  const c = document.getElementById('canvas3d');
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 100);
+  renderer = new THREE.WebGLRenderer({canvas:c, alpha:true, antialias:true});
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setClearColor(0, 0);
+  renderer.shadowMap.enabled = true;
 
-  scene.add(new THREE.AmbientLight(0xffffff,.7));
-  const d=new THREE.DirectionalLight(0xffffff,1.3);
-  d.position.set(5,10,7);scene.add(d);
-  const p=new THREE.PointLight(0x4fc3f7,1,16);
-  p.position.set(-4,3,-3);scene.add(p);
+  // Lights
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  const dLight = new THREE.DirectionalLight(0xffffff, 1.2);
+  dLight.position.set(5, 8, 5);
+  scene.add(dLight);
+  const pLight = new THREE.PointLight(0x4fc3f7, 0.8, 20);
+  pLight.position.set(-3, 4, -2);
+  scene.add(pLight);
+  const pLight2 = new THREE.PointLight(0xffffff, 0.4, 15);
+  pLight2.position.set(3, -2, 3);
+  scene.add(pLight2);
 
-  buildMesh();
+  buildBrowserWindow();
+  setupInput();
 
-  // Touch
-  let lp=null;
-  document.addEventListener('touchstart',e=>{
-    if(e.touches.length===2)lp=pd(e);
-    else{isDrag=true;lx=e.touches[0].clientX;ly=e.touches[0].clientY;}
-  },{passive:true});
-  document.addEventListener('touchmove',e=>{
-    if(e.touches.length===2&&lp){
-      const d=pd(e);
-      currentScale=Math.max(.3,Math.min(3,currentScale+(d-lp)*.005));
-      lp=d;return;
-    }
-    lp=null;
-    if(!isDrag||hasGyro)return;
-    manualYaw+=(e.touches[0].clientX-lx)*.005;
-    manualPitch+=(e.touches[0].clientY-ly)*.005;
-    manualPitch=Math.max(-1.2,Math.min(1.2,manualPitch));
-    lx=e.touches[0].clientX;ly=e.touches[0].clientY;
-  },{passive:true});
-  document.addEventListener('touchend',e=>{
-    if(e.touches.length<2)lp=null;
-    if(!e.touches.length)isDrag=false;
-  });
-  document.addEventListener('wheel',e=>{
-    currentScale=Math.max(.3,Math.min(3,currentScale-e.deltaY*.001));
-  },{passive:true});
-  document.addEventListener('mousedown',e=>{isDrag=true;lx=e.clientX;ly=e.clientY;});
-  document.addEventListener('mousemove',e=>{
-    if(!isDrag)return;
-    manualYaw+=(e.clientX-lx)*.005;
-    manualPitch+=(e.clientY-ly)*.005;
-    manualPitch=Math.max(-1.2,Math.min(1.2,manualPitch));
-    lx=e.clientX;ly=e.clientY;
-  });
-  document.addEventListener('mouseup',()=>isDrag=false);
-  window.addEventListener('resize',()=>{
-    camera.aspect=innerWidth/innerHeight;
+  window.addEventListener('resize', ()=>{
+    camera.aspect = innerWidth/innerHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth,innerHeight);
+    renderer.setSize(innerWidth, innerHeight);
   });
+}
+
+// ── BUILD BROWSER WINDOW ────────────────────────────────────────────────────
+let browserTexture, browserCanvas2D, browserCtx;
+const W = 1024, H = 640; // texture resolution
+const BW = 2.8, BH = 1.75; // 3D size (16:10 ratio)
+
+function buildBrowserWindow(){
+  if(browserGroup) scene.remove(browserGroup);
+  browserGroup = new THREE.Group();
+
+  // === Create 2D canvas for browser texture ===
+  browserCanvas2D = document.createElement('canvas');
+  browserCanvas2D.width = W;
+  browserCanvas2D.height = H;
+  browserCtx = browserCanvas2D.getContext('2d');
+  drawBrowserUI();
+
+  browserTexture = new THREE.CanvasTexture(browserCanvas2D);
+  browserTexture.minFilter = THREE.LinearFilter;
+  browserTexture.magFilter = THREE.LinearFilter;
+
+  // Main panel
+  const panelGeo = new THREE.PlaneGeometry(BW, BH, 1, 1);
+  const panelMat = new THREE.MeshPhongMaterial({
+    map: browserTexture,
+    transparent: true,
+    opacity: 0.97,
+    side: THREE.DoubleSide
+  });
+  const panel = new THREE.Mesh(panelGeo, panelMat);
+  browserGroup.add(panel);
+
+  // Frame / border
+  addFrame();
+
+  // Glow behind
+  const glowGeo = new THREE.PlaneGeometry(BW + 0.2, BH + 0.2);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: COLORS[ci],
+    transparent: true,
+    opacity: 0.08,
+    side: THREE.DoubleSide
+  });
+  const glow = new THREE.Mesh(glowGeo, glowMat);
+  glow.position.z = -0.02;
+  browserGroup.add(glow);
+
+  // Shadow plane (subtle)
+  const shadowGeo = new THREE.PlaneGeometry(BW + 0.5, BH + 0.4);
+  const shadowMat = new THREE.MeshBasicMaterial({
+    color: 0x000000, transparent:true, opacity:0.22, side:THREE.DoubleSide
+  });
+  const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+  shadow.position.z = -0.05;
+  shadow.position.y = -0.05;
+  browserGroup.add(shadow);
+
+  browserGroup.position.set(0, 0, -4);
+  scene.add(browserGroup);
+}
+
+function addFrame(){
+  const color = COLORS[ci];
+  // Top bar
+  const topGeo = new THREE.BoxGeometry(BW, 0.08, 0.01);
+  const frameMat = new THREE.MeshPhongMaterial({color, shininess:200, transparent:true, opacity:0.9});
+  const top = new THREE.Mesh(topGeo, frameMat);
+  top.position.set(0, BH/2 + 0.04, 0.001);
+  browserGroup.add(top);
+  // Bottom
+  const bot = new THREE.Mesh(topGeo, frameMat);
+  bot.position.set(0, -BH/2 - 0.04, 0.001);
+  browserGroup.add(bot);
+  // Left
+  const sideGeo = new THREE.BoxGeometry(0.06, BH + 0.14, 0.01);
+  const lft = new THREE.Mesh(sideGeo, frameMat);
+  lft.position.set(-BW/2 - 0.03, 0, 0.001);
+  browserGroup.add(lft);
+  // Right
+  const rgt = new THREE.Mesh(sideGeo, frameMat);
+  rgt.position.set(BW/2 + 0.03, 0, 0.001);
+  browserGroup.add(rgt);
+  // Corner dots
+  [[-1,1],[1,1],[1,-1],[-1,-1]].forEach(([sx,sy])=>{
+    const cGeo = new THREE.SphereGeometry(0.055, 12, 12);
+    const cMesh = new THREE.Mesh(cGeo, new THREE.MeshPhongMaterial({color:0xffffff, shininess:300}));
+    cMesh.position.set(sx*(BW/2+0.03), sy*(BH/2+0.04), 0.002);
+    browserGroup.add(cMesh);
+  });
+}
+
+function drawBrowserUI(){
+  const ctx = browserCtx;
+  const w = W, h = H;
+  const bar = 52; // top bar height
+  const urlH = 36; // url bar height
+  const barTotal = bar + urlH;
+
+  // Background
+  ctx.fillStyle = '#1a1e2e';
+  ctx.fillRect(0, 0, w, h);
+
+  // === TOP BAR (title bar) ===
+  const barGrad = ctx.createLinearGradient(0,0,0,bar);
+  barGrad.addColorStop(0,'#252a3d');
+  barGrad.addColorStop(1,'#1e2235');
+  ctx.fillStyle = barGrad;
+  ctx.fillRect(0, 0, w, bar);
+
+  // Window controls
+  const dots = [{x:22,c:'#ff5f56'},{x:46,c:'#ffbd2e'},{x:70,c:'#27c93f'}];
+  dots.forEach(d=>{
+    ctx.beginPath();
+    ctx.arc(d.x, bar/2, 8, 0, Math.PI*2);
+    ctx.fillStyle = d.c;
+    ctx.fill();
+  });
+
+  // Tab
+  const tabW = 200;
+  ctx.fillStyle = '#2d3250';
+  roundRect(ctx, 100, 10, tabW, bar-10, [6,6,0,0]);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.font = '600 13px Space Mono, monospace';
+  ctx.fillStyle = '#e0e4f0';
+  ctx.fillText(SITES[siteIdx].label, 120, bar - 14);
+
+  // Favicon
+  ctx.font = '14px serif';
+  ctx.fillText('🌐', 102, bar - 14);
+
+  // Close tab X
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '11px monospace';
+  ctx.fillText('×', 290, bar - 14);
+
+  // + New tab
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.font = '18px monospace';
+  ctx.fillText('+', 315, bar - 10);
+
+  // === URL BAR ===
+  const urlY = bar;
+  ctx.fillStyle = '#161a28';
+  ctx.fillRect(0, urlY, w, urlH);
+
+  // Back/forward/refresh
+  const btns = ['←','→','↻'];
+  btns.forEach((b,i)=>{
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.beginPath();
+    ctx.arc(18 + i*30, urlY + urlH/2, 11, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(b, 18 + i*30, urlY + urlH/2 + 5);
+    ctx.textAlign = 'left';
+  });
+
+  // URL input box
+  const urlBoxX = 105, urlBoxW = w - 160;
+  ctx.fillStyle = '#0d1020';
+  ctx.beginPath();
+  roundRect(ctx, urlBoxX, urlY + 5, urlBoxW, urlH - 10, 6);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(79,195,247,0.4)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Lock icon
+  ctx.fillStyle = '#4fc3f7';
+  ctx.font = '11px monospace';
+  ctx.fillText('🔒', urlBoxX + 6, urlY + urlH - 8);
+
+  // URL text
+  ctx.fillStyle = '#a0aec0';
+  ctx.font = '12px Space Mono, monospace';
+  ctx.fillText(SITES[siteIdx].url, urlBoxX + 26, urlY + urlH - 8);
+
+  // === PAGE CONTENT ===
+  const contentY = barTotal;
+  const contentH = h - barTotal;
+
+  // Page background
+  ctx.fillStyle = '#f0f4f8';
+  ctx.fillRect(0, contentY, w, contentH);
+
+  // Simulate page content
+  drawPageContent(ctx, 0, contentY, w, contentH);
+
+  // Bottom status bar
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fillRect(0, h - 18, w, 18);
+  ctx.fillStyle = '#4a5568';
+  ctx.font = '9px monospace';
+  ctx.fillText(' ✓  ' + SITES[siteIdx].url + '   |   AR Browser v1.0   |   ✓ Secure', 4, h - 5);
+}
+
+function drawPageContent(ctx, x, y, w, h){
+  // Simulate a webpage layout
+  const site = SITES[siteIdx];
+
+  // Header bar
+  const headerColor = ['#1a73e8','#ea4335','#2ecc71','#e67e22','#9b59b6','#00bcd4'][siteIdx % 6];
+  ctx.fillStyle = headerColor;
+  ctx.fillRect(x, y, w, 44);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 18px Georgia, serif';
+  ctx.fillText(site.label, x + 20, y + 28);
+
+  // Search bar in header
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  roundRect(ctx, x + w - 280, y + 8, 260, 28, 4);
+  ctx.fill();
+  ctx.fillStyle = '#666';
+  ctx.font = '11px monospace';
+  ctx.fillText('🔍  Qidirish...', x + w - 270, y + 27);
+
+  // Content area
+  const cy = y + 44;
+
+  // Sidebar
+  ctx.fillStyle = '#edf2f7';
+  ctx.fillRect(x, cy, 180, h - 44 - 18);
+
+  // Sidebar items
+  const navItems = ['🏠 Asosiy','📰 Yangiliklar','🔍 Qidirish','⭐ Saqlangan','⚙️ Sozlamalar'];
+  navItems.forEach((item, i)=>{
+    if(i === 0){
+      ctx.fillStyle = headerColor + '22';
+      ctx.fillRect(x, cy + i * 36, 180, 36);
+    }
+    ctx.fillStyle = i === 0 ? headerColor : '#4a5568';
+    ctx.font = (i===0?'bold ':'') + '11px monospace';
+    ctx.fillText(item, x + 14, cy + i*36 + 23);
+  });
+
+  // Main content
+  const mx = x + 188;
+  const mw = w - 188;
+
+  // Cards
+  const cards = [
+    {title:'Xush kelibsiz!', body:'Bu AR brauzer - 3D kosmosda veb.', tag:'Yangi'},
+    {title:'Gestlar bilan', body:'Qo\'l gestlari orqali boshqarish.', tag:'AR'},
+    {title:site.label, body:'Haqiqiy veb sahifalar AR kosmosida.', tag:'Live'},
+  ];
+
+  cards.forEach((card, i)=>{
+    const cx = mx + (i % 2) * (mw/2 - 4);
+    const cyw = cy + Math.floor(i/2) * 110 + 8;
+    const cw = mw/2 - 12;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(0,0,0,0.1)';
+    ctx.shadowBlur = 6;
+    roundRect(ctx, cx, cyw, cw, 95, 6);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Tag badge
+    ctx.fillStyle = headerColor;
+    roundRect(ctx, cx + 8, cyw + 8, 38, 16, 4);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 8px monospace';
+    ctx.fillText(card.tag, cx + 12, cyw + 19);
+
+    ctx.fillStyle = '#1a202c';
+    ctx.font = 'bold 11px Georgia, serif';
+    ctx.fillText(card.title, cx + 8, cyw + 40);
+
+    ctx.fillStyle = '#718096';
+    ctx.font = '9px monospace';
+    wrapText(ctx, card.body, cx + 8, cyw + 56, cw - 12, 13);
+  });
+
+  // Bottom row - stats
+  const statsY = cy + 230;
+  if(statsY < y + h - 40){
+    ['📊 42K', '👥 1.2M', '⭐ 4.8', '🌍 180+'].forEach((stat, i)=>{
+      const sx = mx + i * (mw/4);
+      ctx.fillStyle = '#fff';
+      ctx.shadowColor = 'rgba(0,0,0,0.08)'; ctx.shadowBlur = 4;
+      roundRect(ctx, sx + 4, statsY, mw/4 - 10, 38, 5);
+      ctx.fill(); ctx.shadowBlur = 0;
+      ctx.fillStyle = headerColor;
+      ctx.font = 'bold 13px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(stat, sx + mw/8, statsY + 23);
+      ctx.textAlign = 'left';
+    });
+  }
+}
+
+function wrapText(ctx, text, x, y, maxW, lineH){
+  const words = text.split(' ');
+  let line = '';
+  words.forEach(w=>{
+    const test = line + w + ' ';
+    if(ctx.measureText(test).width > maxW && line !== ''){
+      ctx.fillText(line, x, y); y += lineH; line = w + ' ';
+    } else line = test;
+  });
+  ctx.fillText(line, x, y);
+}
+
+function roundRect(ctx, x, y, w, h, r){
+  if(typeof r === 'number') r = [r,r,r,r];
+  ctx.beginPath();
+  ctx.moveTo(x + r[0], y);
+  ctx.lineTo(x + w - r[1], y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r[1]);
+  ctx.lineTo(x+w, y+h-r[2]);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r[2], y+h);
+  ctx.lineTo(x+r[3], y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r[3]);
+  ctx.lineTo(x, y+r[0]);
+  ctx.quadraticCurveTo(x, y, x+r[0], y);
+  ctx.closePath();
+}
+
+function updateBrowserURL(){
+  drawBrowserUI();
+  if(browserTexture) browserTexture.needsUpdate = true;
+}
+
+function updateBrowserColor(){
+  // Rebuild with new color
+  buildBrowserWindow();
+}
+
+// ── INPUT ───────────────────────────────────────────────────────────────────
+function setupInput(){
+  let lp = null;
+  document.addEventListener('touchstart', e=>{
+    if(e.touches.length === 2) lp = pd(e);
+    else { isDrag=true; lx=e.touches[0].clientX; ly=e.touches[0].clientY; }
+  },{passive:true});
+  document.addEventListener('touchmove', e=>{
+    if(e.touches.length === 2 && lp){
+      const d = pd(e);
+      targetScale = Math.max(.25, Math.min(3.2, targetScale + (d-lp)*.007));
+      lp = d; return;
+    }
+    lp = null;
+    if(!isDrag || hasGyro) return;
+    manualYaw  += (e.touches[0].clientX - lx) * .004;
+    manualPitch += (e.touches[0].clientY - ly) * .004;
+    manualPitch = Math.max(-1.1, Math.min(1.1, manualPitch));
+    lx=e.touches[0].clientX; ly=e.touches[0].clientY;
+  },{passive:true});
+  document.addEventListener('touchend', e=>{
+    if(e.touches.length<2) lp=null;
+    if(!e.touches.length) isDrag=false;
+  });
+  document.addEventListener('wheel', e=>{
+    targetScale = Math.max(.25, Math.min(3.2, targetScale - e.deltaY*.0008));
+  },{passive:true});
+  document.addEventListener('mousedown', e=>{ isDrag=true; lx=e.clientX; ly=e.clientY; });
+  document.addEventListener('mousemove', e=>{
+    if(!isDrag) return;
+    manualYaw  += (e.clientX-lx)*.004;
+    manualPitch += (e.clientY-ly)*.004;
+    manualPitch = Math.max(-1.1, Math.min(1.1, manualPitch));
+    lx=e.clientX; ly=e.clientY;
+  });
+  document.addEventListener('mouseup', ()=>isDrag=false);
 }
 
 function pd(e){
-  const dx=e.touches[0].clientX-e.touches[1].clientX;
-  const dy=e.touches[0].clientY-e.touches[1].clientY;
-  return Math.sqrt(dx*dx+dy*dy);
+  const dx = e.touches[0].clientX - e.touches[1].clientX;
+  const dy = e.touches[0].clientY - e.touches[1].clientY;
+  return Math.sqrt(dx*dx + dy*dy);
 }
 
-function buildMesh(){
-  if(mesh)scene.remove(mesh);
-  const g=new THREE.Group();
-  const col=COLORS[ci];
-  const mat=new THREE.MeshPhongMaterial({color:col,shininess:140,transparent:true,opacity:.92,side:THREE.DoubleSide});
-  const wm=new THREE.MeshBasicMaterial({wireframe:true,color:0xffffff,transparent:true,opacity:.14});
-  const gm=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.11,side:THREE.BackSide});
-  let geo,geo2;
-  const sh=SHAPES[si];
-  if(sh==='Kub'){geo=new THREE.BoxGeometry(1.2,1.2,1.2);geo2=new THREE.BoxGeometry(1.44,1.44,1.44);}
-  else if(sh==='Sfera'){geo=new THREE.SphereGeometry(.75,32,32);geo2=new THREE.SphereGeometry(.92,32,32);}
-  else if(sh==='Oktaedr'){geo=new THREE.OctahedronGeometry(.85);geo2=new THREE.OctahedronGeometry(1.02);}
-  else if(sh==='Torus'){geo=new THREE.TorusGeometry(.7,.28,20,64);geo2=new THREE.TorusGeometry(.7,.38,20,64);}
-  else if(sh==='Konus'){geo=new THREE.ConeGeometry(.7,1.3,8);geo2=new THREE.ConeGeometry(.86,1.5,8);}
-  else{geo=new THREE.CylinderGeometry(.6,.6,1.2,16);geo2=new THREE.CylinderGeometry(.75,.75,1.4,16);}
-  g.add(new THREE.Mesh(geo,mat));
-  g.add(new THREE.Mesh(geo.clone(),wm));
-  g.add(new THREE.Mesh(geo2,gm));
-  g.position.set(0,0,-3.5);
-  mesh=g;scene.add(mesh);
-}
+// ── RENDER LOOP ──────────────────────────────────────────────────────────────
+const LERP = 0.06; // smoothing factor — lower = smoother
 
 function renderLoop(){
   requestAnimationFrame(renderLoop);
-  if(!mesh)return;
-  mesh.rotation.y+=.007;
-  mesh.scale.setScalar(currentScale);
-  if(hasGyro)camera.quaternion.copy(gyroQ);
-  else{
-    camera.rotation.order='YXZ';
-    camera.rotation.y=manualYaw;
-    camera.rotation.x=manualPitch;
+  if(!browserGroup) return;
+
+  // Smooth scale
+  currentScale += (targetScale - currentScale) * LERP;
+  browserGroup.scale.setScalar(currentScale);
+
+  // Smooth rotation
+  if(!hasGyro){
+    // Smooth auto-rotation on Y axis
+    targetRotY += autoRotateSpeed;
+    currentRotY += (targetRotY - currentRotY) * LERP;
+
+    // Manual drag overrides auto (when dragging)
+    currentRotX += (manualPitch - currentRotX) * LERP;
+
+    browserGroup.rotation.y = currentRotY + manualYaw;
+    browserGroup.rotation.x = currentRotX;
+
+    camera.rotation.order = 'YXZ';
+    camera.rotation.set(0, 0, 0);
+    camera.quaternion.identity();
+  } else {
+    // Gyro mode: camera moves, group stays
+    camera.quaternion.slerp(gyroQ, 0.08);
+    currentRotY += autoRotateSpeed * 0.5;
+    browserGroup.rotation.y = currentRotY;
   }
+
   camera.position.set(0,0,0);
-  renderer.render(scene,camera);
+
+  // Slight bob animation
+  browserGroup.position.y = Math.sin(Date.now() * 0.0008) * 0.04;
+  browserGroup.position.z = -4;
+
+  // Update scale badge
+  document.getElementById('scale-badge').textContent = 'SCALE ' + currentScale.toFixed(2) + 'x';
+
+  renderer.render(scene, camera);
 }
 
-function setInfo(h){document.getElementById('info').innerHTML=h;}
+// ── UTILS ────────────────────────────────────────────────────────────────────
+function setStatus(h){ document.getElementById('status').innerHTML = h; }
 </script>
 </body>
 </html>
